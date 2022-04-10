@@ -1,0 +1,8 @@
+[package]
+name = "nestruct"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+quote = "1.0.17"
+syn = { version = "1.0.91", features = ["derive", "parsing"] }

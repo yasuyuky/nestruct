@@ -18,6 +18,42 @@ enum FieldType {
     Type(Type),
 }
 
+impl Parse for Nestruct {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let ident = input.parse()?;
+        let content;
+        let brace_token = braced!(content in input);
+        let fields = content.parse_terminated(NestableField::parse)?;
+        Ok(Nestruct {
+            ident,
+            brace_token,
+            fields,
+        })
+    }
+}
+
+impl Parse for NestableField {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let name = input.parse()?;
+        let colon_token = input.parse()?;
+        let ty = input.parse()?;
+        Ok(NestableField {
+            name,
+            colon_token,
+            ty,
+        })
+    }
+}
+
+impl Parse for FieldType {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        if input.peek(token::Brace) {
+            Ok(FieldType::Struct(input.parse()?))
+        } else {
+            Ok(FieldType::Type(input.parse()?))
+        }
+    }
+}
 
 #[proc_macro]
 pub fn nestruct(input: TokenStream) -> TokenStream {

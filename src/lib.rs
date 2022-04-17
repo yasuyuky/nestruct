@@ -34,9 +34,9 @@ impl Parse for Nestruct {
 
 impl Parse for NestableField {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let name = input.parse()?;
+        let name: Ident = input.parse()?;
         let colon_token = input.parse()?;
-        let ty = input.parse()?;
+        let ty = FieldType::parse_with_context(input, name.clone())?;
         Ok(NestableField {
             name,
             colon_token,
@@ -45,10 +45,17 @@ impl Parse for NestableField {
     }
 }
 
-impl Parse for FieldType {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+impl FieldType {
+    fn parse_with_context(input: syn::parse::ParseStream, ident: Ident) -> syn::Result<Self> {
         if input.peek(token::Brace) {
-            Ok(FieldType::Struct(input.parse()?))
+            let content;
+            let brace_token = braced!(content in input);
+            let fields = content.parse_terminated(NestableField::parse)?;
+            Ok(FieldType::Struct(Nestruct {
+                ident,
+                brace_token,
+                fields,
+            }))
         } else {
             Ok(FieldType::Type(input.parse()?))
         }

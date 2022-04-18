@@ -98,5 +98,8 @@ fn generate_structs(nestruct: Nestruct) -> Vec<TokenStream> {
 
 #[proc_macro]
 pub fn nestruct(input: TokenStream) -> TokenStream {
-    return TokenStream::new();
+    let nestruct = syn::parse_macro_input!(input as Nestruct);
+    let tokens = generate_structs(nestruct);
+    let out_token = tokens.into_iter().collect::<TokenStream>();
+    return out_token.into();
 }

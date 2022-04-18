@@ -1,18 +1,21 @@
 use proc_macro::TokenStream;
 use syn::{braced, parse::Parse, punctuated::Punctuated, token, Ident, Token, Type};
 
+#[derive(Clone)]
 struct Nestruct {
     ident: Ident,
     brace_token: token::Brace,
     fields: Punctuated<NestableField, Token![,]>,
 }
 
+#[derive(Clone)]
 struct NestableField {
     name: Ident,
     colon_token: Token![:],
     ty: FieldType,
 }
 
+#[derive(Clone)]
 enum FieldType {
     Struct(Nestruct),
     Type(Type),

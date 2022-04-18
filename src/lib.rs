@@ -1,3 +1,4 @@
+use convert_case::{Case, Casing};
 use proc_macro::TokenStream;
 use quote::{format_ident, quote, ToTokens};
 use syn::{braced, parse::Parse, punctuated::Punctuated, token, Ident, Token, Type};
@@ -35,7 +36,8 @@ impl Parse for NestableField {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let name: Ident = input.parse()?;
         let colon_token = input.parse()?;
-        let ty = FieldType::parse_with_context(input, name.clone())?;
+        let ident = format_ident!("{}", name.to_string().to_case(Case::Pascal));
+        let ty = FieldType::parse_with_context(input, ident)?;
         Ok(NestableField {
             name,
             colon_token,

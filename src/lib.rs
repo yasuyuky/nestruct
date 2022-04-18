@@ -5,7 +5,6 @@ use syn::{braced, parse::Parse, punctuated::Punctuated, token, Ident, Token, Typ
 #[derive(Clone)]
 struct Nestruct {
     ident: Ident,
-    brace_token: token::Brace,
     fields: Punctuated<NestableField, Token![,]>,
 }
 
@@ -26,13 +25,9 @@ impl Parse for Nestruct {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let ident = input.parse()?;
         let content;
-        let brace_token = braced!(content in input);
+        braced!(content in input);
         let fields = content.parse_terminated(NestableField::parse)?;
-        Ok(Nestruct {
-            ident,
-            brace_token,
-            fields,
-        })
+        Ok(Nestruct { ident, fields })
     }
 }
 
@@ -53,13 +48,9 @@ impl FieldType {
     fn parse_with_context(input: syn::parse::ParseStream, ident: Ident) -> syn::Result<Self> {
         if input.peek(token::Brace) {
             let content;
-            let brace_token = braced!(content in input);
+            braced!(content in input);
             let fields = content.parse_terminated(NestableField::parse)?;
-            Ok(FieldType::Struct(Nestruct {
-                ident,
-                brace_token,
-                fields,
-            }))
+            Ok(FieldType::Struct(Nestruct { ident, fields }))
         } else {
             Ok(FieldType::Type(input.parse()?))
         }

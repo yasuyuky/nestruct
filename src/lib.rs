@@ -74,14 +74,15 @@ fn generate_structs(nestruct: Nestruct) -> Vec<TokenStream> {
         ty,
     } in nestruct.fields
     {
-        match ty {
+        let ty_token = match ty {
             FieldType::Struct(nestruct) => {
                 let ident = nestruct.ident.clone();
                 tokens.extend(generate_structs(nestruct));
-                fields.push(quote! { #name #colon_token #ident });
+                quote! { #ident }
             }
-            FieldType::Type(ty) => fields.push(quote! { #name #colon_token #ty }),
+            FieldType::Type(ty) => quote! { #ty },
         };
+        fields.push(quote! { #name #colon_token #ty_token });
     }
     let ident = nestruct.ident;
     tokens.push(

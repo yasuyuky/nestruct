@@ -13,6 +13,7 @@ struct Nestruct {
 struct NestableField {
     name: Ident,
     colon_token: Token![:],
+    is_array: bool,
     ty: FieldType,
 }
 
@@ -37,16 +38,17 @@ impl Parse for NestableField {
         let name: Ident = input.parse()?;
         let colon_token = input.parse()?;
         let ident = format_ident!("{}", name.to_string().to_case(Case::Pascal));
-        let ty = if input.peek(token::Bracket) {
+        let (is_array, ty) = if input.peek(token::Bracket) {
             let content;
             bracketed!(content in input);
-            FieldType::parse_with_context(&content, ident)?
+            (true, FieldType::parse_with_context(&content, ident)?)
         } else {
-            FieldType::parse_with_context(input, ident)?
+            (false, FieldType::parse_with_context(input, ident)?)
         };
         Ok(NestableField {
             name,
             colon_token,
+            is_array,
             ty,
         })
     }
@@ -71,6 +73,7 @@ fn generate_structs(nestruct: Nestruct) -> Vec<TokenStream> {
     for NestableField {
         name,
         colon_token,
+        is_array,
         ty,
     } in nestruct.fields
     {

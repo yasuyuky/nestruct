@@ -1,7 +1,7 @@
 use convert_case::{Case, Casing};
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
-use syn::{braced, parse::Parse, punctuated::Punctuated, token, Ident, Token, Type};
+use syn::{braced, bracketed, parse::Parse, punctuated::Punctuated, token, Ident, Token, Type};
 
 #[derive(Clone)]
 struct Nestruct {
@@ -37,7 +37,13 @@ impl Parse for NestableField {
         let name: Ident = input.parse()?;
         let colon_token = input.parse()?;
         let ident = format_ident!("{}", name.to_string().to_case(Case::Pascal));
-        let ty = FieldType::parse_with_context(input, ident)?;
+        let ty = if input.peek(token::Bracket) {
+            let content;
+            bracketed!(content in input);
+            FieldType::parse_with_context(&content, ident)?
+        } else {
+            FieldType::parse_with_context(input, ident)?
+        };
         Ok(NestableField {
             name,
             colon_token,

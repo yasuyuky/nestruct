@@ -1,6 +1,6 @@
 use convert_case::{Case, Casing};
 use proc_macro::TokenStream;
-use quote::{format_ident, quote, ToTokens};
+use quote::{format_ident, quote};
 use syn::{braced, parse::Parse, punctuated::Punctuated, token, Ident, Token, Type};
 
 #[derive(Clone)]
@@ -68,14 +68,14 @@ fn generate_structs(nestruct: Nestruct) -> Vec<TokenStream> {
         ty,
     } in nestruct.fields
     {
-        let ty: Ident = match ty {
+        match ty {
             FieldType::Struct(nestruct) => {
-                tokens.extend(generate_structs(nestruct.clone()));
-                nestruct.ident
+                let ident = nestruct.ident.clone();
+                tokens.extend(generate_structs(nestruct));
+                fields.push(quote! { #name #colon_token #ident });
             }
-            FieldType::Type(ty) => format_ident!("{}", ty.to_token_stream().to_string()),
+            FieldType::Type(ty) => fields.push(quote! { #name #colon_token #ty }),
         };
-        fields.push(quote! { #name #colon_token #ty });
     }
     let ident = nestruct.ident;
     tokens.push(

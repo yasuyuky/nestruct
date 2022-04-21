@@ -1,7 +1,9 @@
 use convert_case::{Case, Casing};
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
-use syn::{braced, bracketed, parse::Parse, punctuated::Punctuated, token, Ident, Token, Type};
+use syn::{
+    braced, bracketed, parse::Parse, punctuated::Punctuated, token, Attribute, Ident, Token, Type,
+};
 
 #[derive(Clone)]
 struct Nestruct {
@@ -11,6 +13,7 @@ struct Nestruct {
 
 #[derive(Clone)]
 struct NestableField {
+    attrs: Vec<Attribute>,
     name: Ident,
     colon_token: Token![:],
     is_array: bool,
@@ -35,6 +38,7 @@ impl Parse for Nestruct {
 
 impl Parse for NestableField {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let attrs = input.call(Attribute::parse_outer)?;
         let name: Ident = input.parse()?;
         let colon_token = input.parse()?;
         let ident = format_ident!("{}", name.to_string().to_case(Case::Pascal));
@@ -46,6 +50,7 @@ impl Parse for NestableField {
             (false, FieldType::parse_with_context(input, ident)?)
         };
         Ok(NestableField {
+            attrs,
             name,
             colon_token,
             is_array,
@@ -71,6 +76,7 @@ fn generate_structs(nestruct: Nestruct) -> Vec<TokenStream> {
     let mut tokens = Vec::new();
     let mut fields = Vec::new();
     for NestableField {
+        attrs,
         name,
         colon_token,
         is_array,
@@ -86,9 +92,9 @@ fn generate_structs(nestruct: Nestruct) -> Vec<TokenStream> {
             FieldType::Type(ty) => quote! { #ty },
         };
         if is_array {
-            fields.push(quote! { #name #colon_token Vec<#ty_token> });
+            fields.push(quote! { #(#attrs)* #name #colon_token Vec<#ty_token> });
         } else {
-            fields.push(quote! { #name #colon_token #ty_token });
+            fields.push(quote! { #(#attrs)* #name #colon_token #ty_token });
         }
     }
     let ident = nestruct.ident;

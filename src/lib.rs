@@ -85,7 +85,11 @@ fn generate_structs(nestruct: Nestruct) -> Vec<TokenStream> {
             }
             FieldType::Type(ty) => quote! { #ty },
         };
-        fields.push(quote! { #name #colon_token #ty_token });
+        if is_array {
+            fields.push(quote! { #name #colon_token Vec<#ty_token> });
+        } else {
+            fields.push(quote! { #name #colon_token #ty_token });
+        }
     }
     let ident = nestruct.ident;
     tokens.push(

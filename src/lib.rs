@@ -7,6 +7,7 @@ use syn::{
 
 #[derive(Clone)]
 struct Nestruct {
+    attrs: Vec<Attribute>,
     ident: Ident,
     fields: Punctuated<NestableField, Token![,]>,
 }
@@ -28,11 +29,16 @@ enum FieldType {
 
 impl Parse for Nestruct {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let attrs = input.call(Attribute::parse_outer)?;
         let ident = input.parse()?;
         let content;
         braced!(content in input);
         let fields = content.parse_terminated(NestableField::parse)?;
-        Ok(Nestruct { ident, fields })
+        Ok(Nestruct {
+            attrs,
+            ident,
+            fields,
+        })
     }
 }
 
@@ -65,7 +71,11 @@ impl FieldType {
             let content;
             braced!(content in input);
             let fields = content.parse_terminated(NestableField::parse)?;
-            Ok(FieldType::Struct(Nestruct { ident, fields }))
+            Ok(FieldType::Struct(Nestruct {
+                attrs: vec![],
+                ident,
+                fields,
+            }))
         } else {
             Ok(FieldType::Type(input.parse()?))
         }

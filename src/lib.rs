@@ -16,7 +16,7 @@ struct Nestruct {
 struct NestableField {
     attrs: Vec<Attribute>,
     name: Ident,
-    is_array: bool,
+    collection: Option<Ident>,
     ty: FieldType,
 }
 
@@ -48,18 +48,18 @@ impl Parse for NestableField {
         input.parse::<token::Colon>()?;
         let ident = format_ident!("{}", name.to_string().to_case(Case::Pascal));
         let buffer;
-        let (is_array, input) = if input.peek(token::Bracket) {
+        let (collection, input) = if input.peek(token::Bracket) {
             bracketed!(buffer in input);
-            (true, &buffer)
+            (Some(format_ident!("Vec")), &buffer)
         } else {
-            (false, input)
+            (None, input)
         };
         let ctxattrs = input.call(Attribute::parse_outer)?;
         let ty = FieldType::parse_with_context(input, ctxattrs, ident)?;
         Ok(NestableField {
             attrs,
             name,
-            is_array,
+            collection,
             ty,
         })
     }
@@ -94,7 +94,7 @@ fn generate_structs(nestruct: Nestruct, rootattrs: &[Attribute]) -> Vec<TokenStr
     for NestableField {
         attrs,
         name,
-        is_array,
+        collection,
         ty,
     } in nestruct.fields
     {
@@ -106,10 +106,9 @@ fn generate_structs(nestruct: Nestruct, rootattrs: &[Attribute]) -> Vec<TokenStr
             }
             FieldType::Type(ty) => quote! { #ty },
         };
-        if is_array {
-            fields.push(quote! { #(#attrs)* #name : Vec<#ty_token> });
-        } else {
-            fields.push(quote! { #(#attrs)* #name : #ty_token });
+        match collection {
+            Some(c) => fields.push(quote! { #(#attrs)* #name : #c<#ty_token> }),
+            None => fields.push(quote! { #(#attrs)* #name : #ty_token }),
         }
     }
     let ident = nestruct.ident;

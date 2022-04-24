@@ -92,14 +92,8 @@ fn generate_structs(nest: bool, nestruct: Nestruct, parent_attrs: &[Attribute]) 
     let mut fields = Vec::new();
     let mut attrs = nestruct.attrs.clone();
     attrs.extend(parent_attrs.iter().map(|a| a.clone()));
-    for NestableField {
-        field_attrs,
-        name,
-        collection,
-        ty,
-    } in nestruct.fields
-    {
-        let ty_token = match ty {
+    for field in nestruct.fields {
+        let ty_token = match field.ty {
             FieldType::Struct(nestruct) => {
                 let ident = nestruct.ident.clone();
                 tokens.push(generate_structs(nest, nestruct, &attrs));
@@ -112,7 +106,9 @@ fn generate_structs(nest: bool, nestruct: Nestruct, parent_attrs: &[Attribute]) 
             }
             FieldType::Type(ty) => quote! { #ty },
         };
-        match collection {
+        let field_attrs = field.field_attrs;
+        let name = field.name;
+        match field.collection {
             Some(c) => fields.push(quote! { #(#field_attrs)* #name : #c<#ty_token> }),
             None => fields.push(quote! { #(#field_attrs)* #name : #ty_token }),
         }

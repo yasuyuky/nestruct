@@ -127,11 +127,7 @@ fn generate_structs(nest: bool, nestruct: Nestruct, rootattrs: &[Attribute]) -> 
     let token = tokens.into_iter().collect::<TokenStream2>();
     if nest {
         let ns = format_ident!("{}", ident.to_string().to_case(Case::Snake));
-        quote! {
-            pub mod #ns {
-                #token
-            }
-        }
+        quote! { pub mod #ns { #token } }
     } else {
         token
     }

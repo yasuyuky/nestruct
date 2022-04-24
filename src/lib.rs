@@ -15,7 +15,7 @@ struct Nestruct {
 
 #[derive(Clone)]
 struct NestableField {
-    attrs: Vec<Attribute>,
+    field_attrs: Vec<Attribute>,
     name: Ident,
     collection: Option<Ident>,
     ty: FieldType,
@@ -44,7 +44,7 @@ impl Parse for Nestruct {
 
 impl Parse for NestableField {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let attrs = input.call(Attribute::parse_outer)?;
+        let field_attrs = input.call(Attribute::parse_outer)?;
         let name: Ident = input.parse()?;
         input.parse::<token::Colon>()?;
         let ident = format_ident!("{}", name.to_string().to_case(Case::Pascal));
@@ -58,7 +58,7 @@ impl Parse for NestableField {
         let ctxattrs = input.call(Attribute::parse_outer)?;
         let ty = FieldType::parse_with_context(input, ctxattrs, ident)?;
         Ok(NestableField {
-            attrs,
+            field_attrs,
             name,
             collection,
             ty,
@@ -87,13 +87,13 @@ impl FieldType {
     }
 }
 
-fn generate_structs(nest: bool, nestruct: Nestruct, rootattrs: &[Attribute]) -> TokenStream2 {
+fn generate_structs(nest: bool, nestruct: Nestruct, parent_attrs: &[Attribute]) -> TokenStream2 {
     let mut tokens = Vec::new();
     let mut fields = Vec::new();
-    let mut structattrs = nestruct.attrs.clone();
-    structattrs.extend(rootattrs.iter().map(|a| a.clone()));
+    let mut attrs = nestruct.attrs.clone();
+    attrs.extend(parent_attrs.iter().map(|a| a.clone()));
     for NestableField {
-        attrs,
+        field_attrs,
         name,
         collection,
         ty,
@@ -102,7 +102,7 @@ fn generate_structs(nest: bool, nestruct: Nestruct, rootattrs: &[Attribute]) -> 
         let ty_token = match ty {
             FieldType::Struct(nestruct) => {
                 let ident = nestruct.ident.clone();
-                tokens.push(generate_structs(nest, nestruct, &structattrs));
+                tokens.push(generate_structs(nest, nestruct, &attrs));
                 if nest {
                     let ns = format_ident!("{}", ident.to_string().to_case(Case::Snake));
                     quote! { #ns::#ident }
@@ -113,14 +113,13 @@ fn generate_structs(nest: bool, nestruct: Nestruct, rootattrs: &[Attribute]) -> 
             FieldType::Type(ty) => quote! { #ty },
         };
         match collection {
-            Some(c) => fields.push(quote! { #(#attrs)* #name : #c<#ty_token> }),
-            None => fields.push(quote! { #(#attrs)* #name : #ty_token }),
+            Some(c) => fields.push(quote! { #(#field_attrs)* #name : #c<#ty_token> }),
+            None => fields.push(quote! { #(#field_attrs)* #name : #ty_token }),
         }
     }
     let ident = nestruct.ident;
     tokens.push(quote! {
-        #(#structattrs)*
-        pub struct #ident {
+        #(#attrs)* pub struct #ident {
             #(#fields),*
         }
     });

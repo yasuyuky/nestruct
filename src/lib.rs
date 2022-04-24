@@ -46,13 +46,20 @@ impl Parse for NestableField {
         let attrs = input.call(Attribute::parse_outer)?;
         let name: Ident = input.parse()?;
         input.parse::<token::Colon>()?;
+        let ctxattrs = input.call(Attribute::parse_outer)?;
         let ident = format_ident!("{}", name.to_string().to_case(Case::Pascal));
         let (is_array, ty) = if input.peek(token::Bracket) {
             let content;
             bracketed!(content in input);
-            (true, FieldType::parse_with_context(&content, ident)?)
+            (
+                true,
+                FieldType::parse_with_context(&content, ctxattrs, ident)?,
+            )
         } else {
-            (false, FieldType::parse_with_context(input, ident)?)
+            (
+                false,
+                FieldType::parse_with_context(input, ctxattrs, ident)?,
+            )
         };
         Ok(NestableField {
             attrs,
@@ -64,13 +71,17 @@ impl Parse for NestableField {
 }
 
 impl FieldType {
-    fn parse_with_context(input: syn::parse::ParseStream, ident: Ident) -> syn::Result<Self> {
+    fn parse_with_context(
+        input: syn::parse::ParseStream,
+        attrs: Vec<Attribute>,
+        ident: Ident,
+    ) -> syn::Result<Self> {
         if input.peek(token::Brace) {
             let content;
             braced!(content in input);
             let fields = content.parse_terminated(NestableField::parse)?;
             Ok(FieldType::Struct(Nestruct {
-                attrs: vec![],
+                attrs,
                 ident,
                 fields,
             }))
@@ -83,6 +94,8 @@ impl FieldType {
 fn generate_structs(nestruct: Nestruct, rootattrs: &[Attribute]) -> Vec<TokenStream> {
     let mut tokens = Vec::new();
     let mut fields = Vec::new();
+    let mut structattrs = nestruct.attrs.clone();
+    structattrs.extend(rootattrs.iter().map(|a| a.clone()));
     for NestableField {
         attrs,
         name,
@@ -93,7 +106,7 @@ fn generate_structs(nestruct: Nestruct, rootattrs: &[Attribute]) -> Vec<TokenStr
         let ty_token = match ty {
             FieldType::Struct(nestruct) => {
                 let ident = nestruct.ident.clone();
-                tokens.extend(generate_structs(nestruct, rootattrs));
+                tokens.extend(generate_structs(nestruct, &structattrs));
                 quote! { #ident }
             }
             FieldType::Type(ty) => quote! { #ty },
@@ -107,7 +120,7 @@ fn generate_structs(nestruct: Nestruct, rootattrs: &[Attribute]) -> Vec<TokenStr
     let ident = nestruct.ident;
     tokens.push(
         quote! {
-            #(#rootattrs)*
+            #(#structattrs)*
             pub struct #ident {
                 #(#fields),*
             }
@@ -120,7 +133,7 @@ fn generate_structs(nestruct: Nestruct, rootattrs: &[Attribute]) -> Vec<TokenStr
 #[proc_macro]
 pub fn nestruct(input: TokenStream) -> TokenStream {
     let nestruct = syn::parse_macro_input!(input as Nestruct);
-    let attrs = nestruct.attrs.clone();
+    let attrs = vec![];
     let tokens = generate_structs(nestruct, &attrs);
     let out_token = tokens.into_iter().collect::<TokenStream>();
     return out_token.into();

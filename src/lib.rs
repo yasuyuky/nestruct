@@ -86,7 +86,7 @@ impl FieldType {
     }
 }
 
-fn generate_structs(nestruct: Nestruct, rootattrs: &[Attribute]) -> Vec<TokenStream> {
+fn generate_structs(nestruct: Nestruct, rootattrs: &[Attribute]) -> TokenStream {
     let mut tokens = Vec::new();
     let mut fields = Vec::new();
     let mut structattrs = nestruct.attrs.clone();
@@ -101,7 +101,7 @@ fn generate_structs(nestruct: Nestruct, rootattrs: &[Attribute]) -> Vec<TokenStr
         let ty_token = match ty {
             FieldType::Struct(nestruct) => {
                 let ident = nestruct.ident.clone();
-                tokens.extend(generate_structs(nestruct, &structattrs));
+                tokens.push(generate_structs(nestruct, &structattrs));
                 quote! { #ident }
             }
             FieldType::Type(ty) => quote! { #ty },
@@ -121,14 +121,12 @@ fn generate_structs(nestruct: Nestruct, rootattrs: &[Attribute]) -> Vec<TokenStr
         }
         .into(),
     );
-    tokens
+    tokens.into_iter().collect::<TokenStream>()
 }
 
 #[proc_macro]
 pub fn nestruct(input: TokenStream) -> TokenStream {
     let nestruct = syn::parse_macro_input!(input as Nestruct);
     let attrs = vec![];
-    let tokens = generate_structs(nestruct, &attrs);
-    let out_token = tokens.into_iter().collect::<TokenStream>();
-    return out_token.into();
+    generate_structs(nestruct, &attrs).into()
 }

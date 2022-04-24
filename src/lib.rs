@@ -16,7 +16,6 @@ struct Nestruct {
 struct NestableField {
     attrs: Vec<Attribute>,
     name: Ident,
-    colon_token: Token![:],
     is_array: bool,
     ty: FieldType,
 }
@@ -46,7 +45,7 @@ impl Parse for NestableField {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let attrs = input.call(Attribute::parse_outer)?;
         let name: Ident = input.parse()?;
-        let colon_token = input.parse()?;
+        input.parse::<token::Colon>()?;
         let ident = format_ident!("{}", name.to_string().to_case(Case::Pascal));
         let (is_array, ty) = if input.peek(token::Bracket) {
             let content;
@@ -58,7 +57,6 @@ impl Parse for NestableField {
         Ok(NestableField {
             attrs,
             name,
-            colon_token,
             is_array,
             ty,
         })
@@ -88,7 +86,6 @@ fn generate_structs(nestruct: Nestruct, rootattrs: &[Attribute]) -> Vec<TokenStr
     for NestableField {
         attrs,
         name,
-        colon_token,
         is_array,
         ty,
     } in nestruct.fields
@@ -102,9 +99,9 @@ fn generate_structs(nestruct: Nestruct, rootattrs: &[Attribute]) -> Vec<TokenStr
             FieldType::Type(ty) => quote! { #ty },
         };
         if is_array {
-            fields.push(quote! { #(#attrs)* #name #colon_token Vec<#ty_token> });
+            fields.push(quote! { #(#attrs)* #name : Vec<#ty_token> });
         } else {
-            fields.push(quote! { #(#attrs)* #name #colon_token #ty_token });
+            fields.push(quote! { #(#attrs)* #name : #ty_token });
         }
     }
     let ident = nestruct.ident;

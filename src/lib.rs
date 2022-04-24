@@ -48,19 +48,14 @@ impl Parse for NestableField {
         input.parse::<token::Colon>()?;
         let ctxattrs = input.call(Attribute::parse_outer)?;
         let ident = format_ident!("{}", name.to_string().to_case(Case::Pascal));
-        let (is_array, ty) = if input.peek(token::Bracket) {
-            let content;
-            bracketed!(content in input);
-            (
-                true,
-                FieldType::parse_with_context(&content, ctxattrs, ident)?,
-            )
+        let buffer;
+        let (is_array, input) = if input.peek(token::Bracket) {
+            bracketed!(buffer in input);
+            (true, &buffer)
         } else {
-            (
-                false,
-                FieldType::parse_with_context(input, ctxattrs, ident)?,
-            )
+            (false, input)
         };
+        let ty = FieldType::parse_with_context(input, ctxattrs, ident)?;
         Ok(NestableField {
             attrs,
             name,

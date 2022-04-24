@@ -88,7 +88,7 @@ fn generate_structs(nest: bool, nestruct: Nestruct, parent_attrs: &[Attribute]) 
     let mut tokens = Vec::new();
     let mut fields = Vec::new();
     let mut attrs = nestruct.attrs.clone();
-    attrs.extend(parent_attrs.iter().map(|a| a.clone()));
+    attrs.extend(parent_attrs.iter().cloned());
     for field in nestruct.fields {
         let ty_token = match field.ty {
             FieldType::Struct(nestruct) => {

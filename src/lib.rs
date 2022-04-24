@@ -1,5 +1,6 @@
 use convert_case::{Case, Casing};
 use proc_macro::TokenStream;
+use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::{
     braced, bracketed, parse::Parse, punctuated::Punctuated, token, Attribute, Ident, Token, Type,
@@ -86,7 +87,7 @@ impl FieldType {
     }
 }
 
-fn generate_structs(nestruct: Nestruct, rootattrs: &[Attribute]) -> TokenStream {
+fn generate_structs(nestruct: Nestruct, rootattrs: &[Attribute]) -> TokenStream2 {
     let mut tokens = Vec::new();
     let mut fields = Vec::new();
     let mut structattrs = nestruct.attrs.clone();
@@ -112,16 +113,13 @@ fn generate_structs(nestruct: Nestruct, rootattrs: &[Attribute]) -> TokenStream 
         }
     }
     let ident = nestruct.ident;
-    tokens.push(
-        quote! {
-            #(#structattrs)*
-            pub struct #ident {
-                #(#fields),*
-            }
+    tokens.push(quote! {
+        #(#structattrs)*
+        pub struct #ident {
+            #(#fields),*
         }
-        .into(),
-    );
-    tokens.into_iter().collect::<TokenStream>()
+    });
+    tokens.into_iter().collect::<TokenStream2>()
 }
 
 #[proc_macro]

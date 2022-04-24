@@ -126,8 +126,15 @@ fn generate_structs(nest: bool, nestruct: Nestruct, parent_attrs: &[Attribute]) 
 }
 
 #[proc_macro]
-pub fn nestruct(input: TokenStream) -> TokenStream {
+pub fn nest(input: TokenStream) -> TokenStream {
     let nestruct = syn::parse_macro_input!(input as Nestruct);
     let attrs = vec![];
     generate_structs(true, nestruct, &attrs).into()
+}
+
+#[proc_macro]
+pub fn flatten(input: TokenStream) -> TokenStream {
+    let nestruct = syn::parse_macro_input!(input as Nestruct);
+    let attrs = vec![];
+    generate_structs(false, nestruct, &attrs).into()
 }

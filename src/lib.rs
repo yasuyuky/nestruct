@@ -87,8 +87,8 @@ impl FieldType {
 fn generate_structs(nest: bool, nestruct: Nestruct, parent_attrs: &[Attribute]) -> TokenStream2 {
     let mut tokens = Vec::new();
     let mut fields = Vec::new();
-    let mut attrs = nestruct.attrs.clone();
-    attrs.extend(parent_attrs.iter().cloned());
+    let mut attrs = Vec::from(parent_attrs);
+    attrs.extend(nestruct.attrs.iter().cloned());
     for field in nestruct.fields {
         let ty_token = match field.ty {
             FieldType::Struct(nestruct) => {

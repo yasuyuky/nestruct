@@ -6,14 +6,12 @@ use syn::{
     braced, bracketed, parse::Parse, punctuated::Punctuated, token, Attribute, Ident, Token, Type,
 };
 
-#[derive(Clone)]
 struct Nestruct {
     attrs: Vec<Attribute>,
     ident: Ident,
     fields: Punctuated<NestableField, Token![,]>,
 }
 
-#[derive(Clone)]
 struct NestableField {
     field_attrs: Vec<Attribute>,
     name: Ident,
@@ -21,7 +19,6 @@ struct NestableField {
     ty: FieldType,
 }
 
-#[derive(Clone)]
 enum FieldType {
     Struct(Nestruct),
     Type(Type),

@@ -87,7 +87,7 @@ impl FieldType {
     }
 }
 
-fn generate_structs(nestruct: Nestruct, rootattrs: &[Attribute]) -> TokenStream2 {
+fn generate_structs(nest: bool, nestruct: Nestruct, rootattrs: &[Attribute]) -> TokenStream2 {
     let mut tokens = Vec::new();
     let mut fields = Vec::new();
     let mut structattrs = nestruct.attrs.clone();
@@ -102,8 +102,13 @@ fn generate_structs(nestruct: Nestruct, rootattrs: &[Attribute]) -> TokenStream2
         let ty_token = match ty {
             FieldType::Struct(nestruct) => {
                 let ident = nestruct.ident.clone();
-                tokens.push(generate_structs(nestruct, &structattrs));
-                quote! { #ident }
+                tokens.push(generate_structs(nest, nestruct, &structattrs));
+                if nest {
+                    let ns = format_ident!("{}", ident.to_string().to_case(Case::Snake));
+                    quote! { #ns::#ident }
+                } else {
+                    quote! { #ident }
+                }
             }
             FieldType::Type(ty) => quote! { #ty },
         };
@@ -119,12 +124,22 @@ fn generate_structs(nestruct: Nestruct, rootattrs: &[Attribute]) -> TokenStream2
             #(#fields),*
         }
     });
-    tokens.into_iter().collect::<TokenStream2>()
+    let token = tokens.into_iter().collect::<TokenStream2>();
+    if nest {
+        let ns = format_ident!("{}", ident.to_string().to_case(Case::Snake));
+        quote! {
+            pub mod #ns {
+                #token
+            }
+        }
+    } else {
+        token
+    }
 }
 
 #[proc_macro]
 pub fn nestruct(input: TokenStream) -> TokenStream {
     let nestruct = syn::parse_macro_input!(input as Nestruct);
     let attrs = vec![];
-    generate_structs(nestruct, &attrs).into()
+    generate_structs(true, nestruct, &attrs).into()
 }

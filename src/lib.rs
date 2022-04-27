@@ -16,7 +16,7 @@ struct NestableField {
     field_attrs: Vec<Attribute>,
     name: Ident,
     collection: Option<Ident>,
-    ty: FieldType,
+    ty: Option<FieldType>,
 }
 
 enum FieldType {
@@ -43,23 +43,32 @@ impl Parse for NestableField {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let field_attrs = input.call(Attribute::parse_outer)?;
         let name: Ident = input.parse()?;
-        input.parse::<token::Colon>()?;
-        let ident = format_ident!("{}", name.to_string().to_case(Case::Pascal));
-        let buffer;
-        let (collection, input) = if input.peek(token::Bracket) {
-            bracketed!(buffer in input);
-            (Some(format_ident!("Vec")), &buffer)
+        if input.peek(token::Colon) {
+            input.parse::<token::Colon>()?;
+            let ident = format_ident!("{}", name.to_string().to_case(Case::Pascal));
+            let buffer;
+            let (collection, input) = if input.peek(token::Bracket) {
+                bracketed!(buffer in input);
+                (Some(format_ident!("Vec")), &buffer)
+            } else {
+                (None, input)
+            };
+            let ctxattrs = input.call(Attribute::parse_outer)?;
+            let ty = Some(FieldType::parse_with_context(input, ctxattrs, ident)?);
+            Ok(NestableField {
+                field_attrs,
+                name,
+                collection,
+                ty,
+            })
         } else {
-            (None, input)
-        };
-        let ctxattrs = input.call(Attribute::parse_outer)?;
-        let ty = FieldType::parse_with_context(input, ctxattrs, ident)?;
-        Ok(NestableField {
-            field_attrs,
-            name,
-            collection,
-            ty,
-        })
+            Ok(NestableField {
+                field_attrs,
+                name,
+                collection: None,
+                ty: None,
+            })
+        }
     }
 }
 
@@ -87,35 +96,48 @@ impl FieldType {
 fn generate_structs(nest: bool, nestruct: Nestruct, parent_attrs: &[Attribute]) -> TokenStream2 {
     let mut tokens = Vec::new();
     let mut fields = Vec::new();
+    let mut variants = Vec::new();
     let mut attrs = Vec::from(parent_attrs);
     attrs.extend(nestruct.attrs.iter().cloned());
     for field in nestruct.fields {
-        let ty_token = match field.ty {
-            FieldType::Struct(nestruct) => {
-                let ident = nestruct.ident.clone();
-                tokens.push(generate_structs(nest, nestruct, &attrs));
-                if nest {
-                    let ns = format_ident!("{}", ident.to_string().to_case(Case::Snake));
-                    quote! { #ns::#ident }
-                } else {
-                    quote! { #ident }
-                }
-            }
-            FieldType::Type(ty) => quote! { #ty },
-        };
         let field_attrs = field.field_attrs;
         let name = field.name;
-        match field.collection {
-            Some(c) => fields.push(quote! { #(#field_attrs)* #name : #c<#ty_token> }),
-            None => fields.push(quote! { #(#field_attrs)* #name : #ty_token }),
+        match field.ty {
+            Some(ty) => {
+                let ty_token = match ty {
+                    FieldType::Struct(nestruct) => {
+                        let ident = nestruct.ident.clone();
+                        tokens.push(generate_structs(nest, nestruct, &attrs));
+                        if nest {
+                            let ns = format_ident!("{}", ident.to_string().to_case(Case::Snake));
+                            quote! { #ns::#ident }
+                        } else {
+                            quote! { #ident }
+                        }
+                    }
+                    FieldType::Type(ty) => quote! { #ty },
+                };
+                match field.collection {
+                    Some(c) => fields.push(quote! { #(#field_attrs)* #name : #c<#ty_token> }),
+                    None => fields.push(quote! { #(#field_attrs)* #name : #ty_token }),
+                }
+            }
+            None => {
+                let variant_name = format_ident!("{}", name.to_string().to_case(Case::Pascal));
+                variants.push(quote! { #(#field_attrs)* #variant_name })
+            }
         }
     }
     let ident = nestruct.ident;
-    tokens.push(quote! {
-        #(#attrs)* pub struct #ident {
-            #(#fields),*
+    if variants.len() > 0 {
+        if fields.len() > 0 {
+            panic!("Cannot have both variants and fields in a brace");
+        } else {
+            tokens.push(quote! { #(#attrs)* pub enum #ident { #(#variants),* } });
         }
-    });
+    } else {
+        tokens.push(quote! { #(#attrs)* pub struct #ident { #(#fields),* } });
+    }
     let token = tokens.into_iter().collect::<TokenStream2>();
     if nest {
         let ns = format_ident!("{}", ident.to_string().to_case(Case::Snake));

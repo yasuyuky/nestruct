@@ -2,9 +2,8 @@ use convert_case::{Case, Casing};
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
-use syn::{
-    braced, bracketed, parse::Parse, punctuated::Punctuated, token, Attribute, Ident, Token, Type,
-};
+use syn::parse::{Parse, ParseStream};
+use syn::{braced, bracketed, punctuated::Punctuated, token, Attribute, Ident, Token, Type};
 
 struct Nestruct {
     attrs: Vec<Attribute>,
@@ -25,7 +24,7 @@ enum FieldType {
 }
 
 impl Parse for Nestruct {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
         let attrs = input.call(Attribute::parse_outer)?;
         let ident = input.parse()?;
         let content;
@@ -40,7 +39,7 @@ impl Parse for Nestruct {
 }
 
 impl Parse for NestableField {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
         let field_attrs = input.call(Attribute::parse_outer)?;
         let name: Ident = input.parse()?;
         if input.peek(token::Colon) {
@@ -74,7 +73,7 @@ impl Parse for NestableField {
 
 impl FieldType {
     fn parse_with_context(
-        input: syn::parse::ParseStream,
+        input: ParseStream,
         attrs: Vec<Attribute>,
         ident: Ident,
     ) -> syn::Result<Self> {

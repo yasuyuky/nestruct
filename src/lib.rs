@@ -100,10 +100,16 @@ fn generate_structs(nest: bool, nestruct: Nestruct, parent_attrs: &[Attribute]) 
                     }
                     FieldType::Type(ty) => quote! { #ty },
                 };
-                match field.collection {
-                    Some(c) => fields.push(quote! { #(#field_attrs)* #name : #c<#ty_token> }),
-                    None => fields.push(quote! { #(#field_attrs)* #name : #ty_token }),
-                }
+                let ty_token = match field.collection {
+                    Some(c) => quote! { #c<#ty_token> },
+                    None => quote! { #ty_token },
+                };
+                let ty_token = if field.optional {
+                    quote! { Option<#ty_token> }
+                } else {
+                    ty_token
+                };
+                fields.push(quote! { #(#field_attrs)* #name : #ty_token });
             }
             None => {
                 let variant_name = format_ident!("{}", name.to_string().to_case(Case::Pascal));

@@ -14,6 +14,7 @@ struct Nestruct {
 struct NestableField {
     field_attrs: Vec<Attribute>,
     name: Ident,
+    optional: bool,
     collection: Option<Ident>,
     ty: Option<FieldType>,
 }
@@ -42,17 +43,18 @@ impl Parse for NestableField {
             input.parse::<token::Colon>()?;
             let ident = format_ident!("{}", name.to_string().to_case(Case::Pascal));
             let buffer;
-            let (collection, input) = if input.peek(token::Bracket) {
+            let (collection, tyinput) = if input.peek(token::Bracket) {
                 bracketed!(buffer in input);
                 (Some(format_ident!("Vec")), &buffer)
             } else {
                 (None, input)
             };
-            let ctxattrs = input.call(Attribute::parse_outer)?;
-            let ty = Some(FieldType::parse_with_context(input, ctxattrs, ident)?);
-            Ok(NestableField { field_attrs, name, collection, ty })
+            let ctxattrs = tyinput.call(Attribute::parse_outer)?;
+            let ty = Some(FieldType::parse_with_context(tyinput, ctxattrs, ident)?);
+            let optional = input.parse::<Option<Token![?]>>()?.is_some();
+            Ok(NestableField { field_attrs, name, optional, collection, ty })
         } else {
-            Ok(NestableField { field_attrs, name, collection: None, ty: None })
+            Ok(NestableField { field_attrs, name, optional: false, collection: None, ty: None })
         }
     }
 }

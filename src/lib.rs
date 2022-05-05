@@ -30,11 +30,7 @@ impl Parse for Nestruct {
         let content;
         braced!(content in input);
         let fields = content.parse_terminated(NestableField::parse)?;
-        Ok(Nestruct {
-            attrs,
-            ident,
-            fields,
-        })
+        Ok(Nestruct { attrs, ident, fields })
     }
 }
 
@@ -54,19 +50,9 @@ impl Parse for NestableField {
             };
             let ctxattrs = input.call(Attribute::parse_outer)?;
             let ty = Some(FieldType::parse_with_context(input, ctxattrs, ident)?);
-            Ok(NestableField {
-                field_attrs,
-                name,
-                collection,
-                ty,
-            })
+            Ok(NestableField { field_attrs, name, collection, ty })
         } else {
-            Ok(NestableField {
-                field_attrs,
-                name,
-                collection: None,
-                ty: None,
-            })
+            Ok(NestableField { field_attrs, name, collection: None, ty: None })
         }
     }
 }
@@ -81,11 +67,7 @@ impl FieldType {
             let content;
             braced!(content in input);
             let fields = content.parse_terminated(NestableField::parse)?;
-            Ok(FieldType::Struct(Nestruct {
-                attrs,
-                ident,
-                fields,
-            }))
+            Ok(FieldType::Struct(Nestruct { attrs, ident, fields }))
         } else {
             Ok(FieldType::Type(input.parse()?))
         }

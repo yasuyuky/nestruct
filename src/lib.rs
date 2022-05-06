@@ -2,7 +2,6 @@ use convert_case::{Case, Casing};
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
-use std::collections::VecDeque;
 use syn::parse::{Parse, ParseStream};
 use syn::{braced, bracketed, punctuated::Punctuated, token, Attribute, Ident, Token, Type};
 
@@ -15,7 +14,7 @@ struct Nestruct {
 struct NestableField {
     field_attrs: Vec<Attribute>,
     name: Ident,
-    meta_types: VecDeque<Ident>,
+    meta_types: Vec<Ident>,
     ty: Option<FieldType>,
 }
 
@@ -38,19 +37,19 @@ impl Parse for Nestruct {
 fn parse_nest_types(
     input: ParseStream,
     ident: Ident,
-) -> syn::Result<(VecDeque<Ident>, Option<FieldType>)> {
-    let mut meta_types = VecDeque::new();
+) -> syn::Result<(Vec<Ident>, Option<FieldType>)> {
+    let mut meta_types = Vec::new();
     let buffer;
     let (mut inner_types, ty) = if input.peek(token::Bracket) {
         bracketed!(buffer in input);
-        meta_types.push_back(format_ident!("Vec"));
+        meta_types.push(format_ident!("Vec"));
         parse_nest_types(&buffer, ident)?
     } else {
         let attrs = input.call(Attribute::parse_outer)?;
-        (VecDeque::new(), Some(FieldType::parse_with_context(input, attrs, ident)?))
+        (Vec::new(), Some(FieldType::parse_with_context(input, attrs, ident)?))
     };
     if input.parse::<Option<Token![?]>>()?.is_some() {
-        meta_types.push_back(format_ident!("Option"));
+        meta_types.push(format_ident!("Option"));
     }
     inner_types.extend(meta_types);
     Ok((inner_types, ty))
@@ -60,7 +59,7 @@ impl Parse for NestableField {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let field_attrs = input.call(Attribute::parse_outer)?;
         let name: Ident = input.parse()?;
-        let meta_types = VecDeque::new();
+        let meta_types = Vec::new();
         if input.peek(token::Colon) {
             input.parse::<token::Colon>()?;
             let ident = format_ident!("{}", name.to_string().to_case(Case::Pascal));

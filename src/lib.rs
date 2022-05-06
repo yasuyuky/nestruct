@@ -38,20 +38,20 @@ fn parse_nest_types(
     input: ParseStream,
     ident: Ident,
 ) -> syn::Result<(Vec<Ident>, Option<FieldType>)> {
-    let mut meta_types = Vec::new();
+    let mut outer_types = Vec::new();
     let buffer;
     let (mut inner_types, ty) = if input.peek(token::Bracket) {
         bracketed!(buffer in input);
-        meta_types.push(format_ident!("Vec"));
+        outer_types.push(format_ident!("Vec"));
         parse_nest_types(&buffer, ident)?
     } else {
         let attrs = input.call(Attribute::parse_outer)?;
         (Vec::new(), Some(FieldType::parse_with_context(input, attrs, ident)?))
     };
     if input.parse::<Option<Token![?]>>()?.is_some() {
-        meta_types.push(format_ident!("Option"));
+        outer_types.push(format_ident!("Option"));
     }
-    inner_types.extend(meta_types);
+    inner_types.extend(outer_types);
     Ok((inner_types, ty))
 }
 

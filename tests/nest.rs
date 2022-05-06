@@ -7,7 +7,7 @@ nestruct::nest! {
         baz: {
             qux: [{
                 quux: (usize, usize)?,
-                quuz: [String]?,
+                quuz: String?,
             }],
             corge: String,
         },

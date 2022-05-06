@@ -35,30 +35,36 @@ impl Parse for Nestruct {
     }
 }
 
+fn parse_nest_types(
+    input: ParseStream,
+    ident: Ident,
+) -> syn::Result<(VecDeque<Ident>, Option<FieldType>)> {
+    let mut meta_types = VecDeque::new();
+    let buffer;
+    let (mut inner_types, ty) = if input.peek(token::Bracket) {
+        bracketed!(buffer in input);
+        meta_types.push_back(format_ident!("Vec"));
+        parse_nest_types(&buffer, ident)?
+    } else {
+        let attrs = input.call(Attribute::parse_outer)?;
+        (VecDeque::new(), Some(FieldType::parse_with_context(input, attrs, ident)?))
+    };
+    if input.parse::<Option<Token![?]>>()?.is_some() {
+        meta_types.push_back(format_ident!("Option"));
+    }
+    inner_types.extend(meta_types);
+    Ok((inner_types, ty))
+}
+
 impl Parse for NestableField {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let field_attrs = input.call(Attribute::parse_outer)?;
         let name: Ident = input.parse()?;
-        let mut meta_types = VecDeque::new();
+        let meta_types = VecDeque::new();
         if input.peek(token::Colon) {
             input.parse::<token::Colon>()?;
             let ident = format_ident!("{}", name.to_string().to_case(Case::Pascal));
-            let buffer;
-            let tyinput = if input.peek(token::Bracket) {
-                bracketed!(buffer in input);
-                meta_types.push_back(format_ident!("Vec"));
-                &buffer
-            } else {
-                input
-            };
-            let ctxattrs = tyinput.call(Attribute::parse_outer)?;
-            let ty = Some(FieldType::parse_with_context(tyinput, ctxattrs, ident)?);
-            if tyinput.parse::<Option<Token![?]>>()?.is_some() {
-                meta_types.push_front(format_ident!("Option"));
-            }
-            if input.parse::<Option<Token![?]>>()?.is_some() {
-                meta_types.push_back(format_ident!("Option"));
-            }
+            let (meta_types, ty) = parse_nest_types(input, ident)?;
             Ok(NestableField { field_attrs, name, meta_types, ty })
         } else {
             Ok(NestableField { field_attrs, name, meta_types, ty: None })

@@ -2,6 +2,7 @@ use convert_case::{Case, Casing};
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
+use std::collections::VecDeque;
 use syn::parse::{Parse, ParseStream};
 use syn::{braced, bracketed, punctuated::Punctuated, token, Attribute, Ident, Token, Type};
 
@@ -14,8 +15,7 @@ struct Nestruct {
 struct NestableField {
     field_attrs: Vec<Attribute>,
     name: Ident,
-    optional: bool,
-    collection: Option<Ident>,
+    meta_types: VecDeque<Ident>,
     ty: Option<FieldType>,
 }
 
@@ -39,22 +39,29 @@ impl Parse for NestableField {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let field_attrs = input.call(Attribute::parse_outer)?;
         let name: Ident = input.parse()?;
+        let mut meta_types = VecDeque::new();
         if input.peek(token::Colon) {
             input.parse::<token::Colon>()?;
             let ident = format_ident!("{}", name.to_string().to_case(Case::Pascal));
             let buffer;
-            let (collection, tyinput) = if input.peek(token::Bracket) {
+            let tyinput = if input.peek(token::Bracket) {
                 bracketed!(buffer in input);
-                (Some(format_ident!("Vec")), &buffer)
+                meta_types.push_back(format_ident!("Vec"));
+                &buffer
             } else {
-                (None, input)
+                input
             };
             let ctxattrs = tyinput.call(Attribute::parse_outer)?;
             let ty = Some(FieldType::parse_with_context(tyinput, ctxattrs, ident)?);
-            let optional = input.parse::<Option<Token![?]>>()?.is_some();
-            Ok(NestableField { field_attrs, name, optional, collection, ty })
+            if tyinput.parse::<Option<Token![?]>>()?.is_some() {
+                meta_types.push_front(format_ident!("Option"));
+            }
+            if input.parse::<Option<Token![?]>>()?.is_some() {
+                meta_types.push_back(format_ident!("Option"));
+            }
+            Ok(NestableField { field_attrs, name, meta_types, ty })
         } else {
-            Ok(NestableField { field_attrs, name, optional: false, collection: None, ty: None })
+            Ok(NestableField { field_attrs, name, meta_types, ty: None })
         }
     }
 }
@@ -87,7 +94,7 @@ fn generate_structs(nest: bool, nestruct: Nestruct, parent_attrs: &[Attribute]) 
         let name = field.name;
         match field.ty {
             Some(ty) => {
-                let ty_token = match ty {
+                let mut ty_token = match ty {
                     FieldType::Struct(nestruct) => {
                         let ident = nestruct.ident.clone();
                         tokens.push(generate_structs(nest, nestruct, &attrs));
@@ -100,15 +107,9 @@ fn generate_structs(nest: bool, nestruct: Nestruct, parent_attrs: &[Attribute]) 
                     }
                     FieldType::Type(ty) => quote! { #ty },
                 };
-                let ty_token = match field.collection {
-                    Some(c) => quote! { #c<#ty_token> },
-                    None => quote! { #ty_token },
-                };
-                let ty_token = if field.optional {
-                    quote! { Option<#ty_token> }
-                } else {
-                    ty_token
-                };
+                for meta_type in field.meta_types {
+                    ty_token = quote! { #meta_type<#ty_token> };
+                }
                 fields.push(quote! { #(#field_attrs)* #name : #ty_token });
             }
             None => {

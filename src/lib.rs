@@ -16,7 +16,8 @@ struct NestableField {
     field_attrs: Vec<Attribute>,
     name: Ident,
     meta_types: Vec<TypePath>,
-    ty: Option<FieldType>,
+    ty: FieldType,
+    variant: bool,
 }
 
 enum FieldType {
@@ -35,10 +36,7 @@ impl Parse for Nestruct {
     }
 }
 
-fn parse_nest_types(
-    input: ParseStream,
-    ident: Ident,
-) -> syn::Result<(Vec<TypePath>, Option<FieldType>)> {
+fn parse_nest_types(input: ParseStream, ident: Ident) -> syn::Result<(Vec<TypePath>, FieldType)> {
     let mut outer_types = Vec::new();
     let buffer;
     let (mut inner_types, ty) = if input.peek(token::Bracket) {
@@ -47,7 +45,7 @@ fn parse_nest_types(
         parse_nest_types(&buffer, ident)?
     } else {
         let attrs = input.call(Attribute::parse_outer)?;
-        (Vec::new(), Some(FieldType::parse_with_context(input, attrs, ident)?))
+        (Vec::new(), FieldType::parse_with_context(input, attrs, ident)?)
     };
     if input.parse::<Option<Token![?]>>()?.is_some() {
         outer_types.push(parse_str::<TypePath>("Option")?);
@@ -65,9 +63,10 @@ impl Parse for NestableField {
             input.parse::<token::Colon>()?;
             let ident = format_ident!("{}", name.to_string().to_case(Case::Pascal));
             let (meta_types, ty) = parse_nest_types(input, ident)?;
-            Ok(NestableField { field_attrs, name, meta_types, ty })
+            Ok(NestableField { field_attrs, name, meta_types, ty, variant: false })
         } else {
-            Ok(NestableField { field_attrs, name, meta_types, ty: None })
+            let ty = FieldType::Type(parse_str("()")?);
+            Ok(NestableField { field_attrs, name, meta_types, ty, variant: true })
         }
     }
 }
@@ -98,9 +97,9 @@ fn generate_structs(nest: bool, nestruct: Nestruct, parent_attrs: &[Attribute]) 
     for field in nestruct.fields {
         let field_attrs = field.field_attrs;
         let name = field.name;
-        match field.ty {
-            Some(ty) => {
-                let mut ty_token = match ty {
+        match field.variant {
+            false => {
+                let mut ty_token = match field.ty {
                     FieldType::Struct(nestruct) => {
                         let ident = nestruct.ident.clone();
                         tokens.push(generate_structs(nest, nestruct, &attrs));
@@ -118,7 +117,7 @@ fn generate_structs(nest: bool, nestruct: Nestruct, parent_attrs: &[Attribute]) 
                 }
                 fields.push(quote! { #(#field_attrs)* #name : #ty_token });
             }
-            None => {
+            true => {
                 let variant_name = format_ident!("{}", name.to_string().to_case(Case::Pascal));
                 variants.push(quote! { #(#field_attrs)* #variant_name })
             }

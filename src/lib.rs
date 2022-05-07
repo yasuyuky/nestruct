@@ -16,12 +16,12 @@ struct NestableField {
     field_attrs: Vec<Attribute>,
     name: Ident,
     meta_types: Vec<TypePath>,
-    ty: FieldType,
+    ty: NestableType,
     variant: bool,
 }
 
-enum FieldType {
-    Struct(Nestruct),
+enum NestableType {
+    Nestruct(Nestruct),
     Type(Type),
 }
 
@@ -36,7 +36,10 @@ impl Parse for Nestruct {
     }
 }
 
-fn parse_nest_types(input: ParseStream, ident: Ident) -> syn::Result<(Vec<TypePath>, FieldType)> {
+fn parse_nest_types(
+    input: ParseStream,
+    ident: Ident,
+) -> syn::Result<(Vec<TypePath>, NestableType)> {
     let mut outer_types = Vec::new();
     let buffer;
     let (mut inner_types, ty) = if input.peek(token::Bracket) {
@@ -45,7 +48,7 @@ fn parse_nest_types(input: ParseStream, ident: Ident) -> syn::Result<(Vec<TypePa
         parse_nest_types(&buffer, ident)?
     } else {
         let attrs = input.call(Attribute::parse_outer)?;
-        (Vec::new(), FieldType::parse_with_context(input, attrs, ident)?)
+        (Vec::new(), NestableType::parse_with_context(input, attrs, ident)?)
     };
     if input.parse::<Option<Token![?]>>()?.is_some() {
         outer_types.push(parse_str::<TypePath>("Option")?);
@@ -65,13 +68,13 @@ impl Parse for NestableField {
             let (meta_types, ty) = parse_nest_types(input, ident)?;
             Ok(NestableField { field_attrs, name, meta_types, ty, variant: false })
         } else {
-            let ty = FieldType::Type(parse_str("()")?);
+            let ty = NestableType::Type(parse_str("()")?);
             Ok(NestableField { field_attrs, name, meta_types, ty, variant: true })
         }
     }
 }
 
-impl FieldType {
+impl NestableType {
     fn parse_with_context(
         input: ParseStream,
         attrs: Vec<Attribute>,
@@ -81,9 +84,9 @@ impl FieldType {
             let content;
             braced!(content in input);
             let fields = content.parse_terminated(NestableField::parse)?;
-            Ok(FieldType::Struct(Nestruct { attrs, ident, fields }))
+            Ok(Self::Nestruct(Nestruct { attrs, ident, fields }))
         } else {
-            Ok(FieldType::Type(input.parse()?))
+            Ok(Self::Type(input.parse()?))
         }
     }
 }
@@ -100,7 +103,7 @@ fn generate_structs(nest: bool, nestruct: Nestruct, parent_attrs: &[Attribute]) 
         match field.variant {
             false => {
                 let mut ty_token = match field.ty {
-                    FieldType::Struct(nestruct) => {
+                    NestableType::Nestruct(nestruct) => {
                         let ident = nestruct.ident.clone();
                         tokens.push(generate_structs(nest, nestruct, &attrs));
                         if nest {
@@ -110,7 +113,7 @@ fn generate_structs(nest: bool, nestruct: Nestruct, parent_attrs: &[Attribute]) 
                             quote! { #ident }
                         }
                     }
-                    FieldType::Type(ty) => quote! { #ty },
+                    NestableType::Type(ty) => quote! { #ty },
                 };
                 for meta_type in field.meta_types {
                     ty_token = quote! { #meta_type<#ty_token> };

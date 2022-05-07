@@ -3,7 +3,8 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::parse::{Parse, ParseStream};
-use syn::{braced, bracketed, punctuated::Punctuated, token, Attribute, Ident, Token, Type};
+use syn::punctuated::Punctuated;
+use syn::{braced, bracketed, parse_str, token, Attribute, Ident, Token, Type, TypePath};
 
 struct Nestruct {
     attrs: Vec<Attribute>,
@@ -14,7 +15,7 @@ struct Nestruct {
 struct NestableField {
     field_attrs: Vec<Attribute>,
     name: Ident,
-    meta_types: Vec<Ident>,
+    meta_types: Vec<TypePath>,
     ty: Option<FieldType>,
 }
 
@@ -37,19 +38,19 @@ impl Parse for Nestruct {
 fn parse_nest_types(
     input: ParseStream,
     ident: Ident,
-) -> syn::Result<(Vec<Ident>, Option<FieldType>)> {
+) -> syn::Result<(Vec<TypePath>, Option<FieldType>)> {
     let mut outer_types = Vec::new();
     let buffer;
     let (mut inner_types, ty) = if input.peek(token::Bracket) {
         bracketed!(buffer in input);
-        outer_types.push(format_ident!("Vec"));
+        outer_types.push(parse_str::<TypePath>("Vec")?);
         parse_nest_types(&buffer, ident)?
     } else {
         let attrs = input.call(Attribute::parse_outer)?;
         (Vec::new(), Some(FieldType::parse_with_context(input, attrs, ident)?))
     };
     if input.parse::<Option<Token![?]>>()?.is_some() {
-        outer_types.push(format_ident!("Option"));
+        outer_types.push(parse_str::<TypePath>("Option")?);
     }
     inner_types.extend(outer_types);
     Ok((inner_types, ty))

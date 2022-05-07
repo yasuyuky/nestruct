@@ -100,30 +100,27 @@ fn generate_structs(nest: bool, nestruct: Nestruct, parent_attrs: &[Attribute]) 
     for field in nestruct.fields {
         let field_attrs = field.field_attrs;
         let name = field.name;
-        match field.variant {
-            false => {
-                let mut ty_token = match field.ty {
-                    NestableType::Nestruct(nestruct) => {
-                        let ident = nestruct.ident.clone();
-                        tokens.push(generate_structs(nest, nestruct, &attrs));
-                        if nest {
-                            let ns = format_ident!("{}", ident.to_string().to_case(Case::Snake));
-                            quote! { #ns::#ident }
-                        } else {
-                            quote! { #ident }
-                        }
+        if field.variant {
+            let variant_name = format_ident!("{}", name.to_string().to_case(Case::Pascal));
+            variants.push(quote! { #(#field_attrs)* #variant_name })
+        } else {
+            let mut ty_token = match field.ty {
+                NestableType::Nestruct(nestruct) => {
+                    let ident = nestruct.ident.clone();
+                    tokens.push(generate_structs(nest, nestruct, &attrs));
+                    if nest {
+                        let ns = format_ident!("{}", ident.to_string().to_case(Case::Snake));
+                        quote! { #ns::#ident }
+                    } else {
+                        quote! { #ident }
                     }
-                    NestableType::Type(ty) => quote! { #ty },
-                };
-                for meta_type in field.meta_types {
-                    ty_token = quote! { #meta_type<#ty_token> };
                 }
-                fields.push(quote! { #(#field_attrs)* #name : #ty_token });
+                NestableType::Type(ty) => quote! { #ty },
+            };
+            for meta_type in field.meta_types {
+                ty_token = quote! { #meta_type<#ty_token> };
             }
-            true => {
-                let variant_name = format_ident!("{}", name.to_string().to_case(Case::Pascal));
-                variants.push(quote! { #(#field_attrs)* #variant_name })
-            }
+            fields.push(quote! { #(#field_attrs)* #name : #ty_token });
         }
     }
     let ident = nestruct.ident;

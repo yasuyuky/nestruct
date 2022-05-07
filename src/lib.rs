@@ -120,7 +120,7 @@ fn generate_structs(nest: bool, nestruct: Nestruct, parent_attrs: &[Attribute]) 
             for meta_type in field.meta_types {
                 ty_token = quote! { #meta_type<#ty_token> };
             }
-            fields.push(quote! { #(#field_attrs)* #name : #ty_token });
+            fields.push(quote! { #(#field_attrs)* pub #name : #ty_token });
         }
     }
     let ident = nestruct.ident;

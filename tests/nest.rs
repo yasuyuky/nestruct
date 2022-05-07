@@ -3,7 +3,7 @@ nestruct::nest! {
     #[serde(rename_all = "camelCase")]
     FooBar {
         foo: String?,
-        bar: [usize],
+        bar: [[usize]?]?,
         baz: {
             qux: [{
                 quux: (usize, usize)?,
@@ -23,7 +23,7 @@ fn test_nest_deserialize() {
     let jsonstr = r#"
     {
         "foo": "foo",
-        "bar": [1, 2, 3],
+        "bar": [null, [1, 2, 3]],
         "baz": {
             "qux": [
                 {

@@ -91,6 +91,29 @@ impl NestableType {
     }
 }
 
+fn generate_field_type(
+    ty: NestableType,
+    meta_types: &[TypePath],
+    nest: bool,
+) -> (TokenStream2, Option<Nestruct>) {
+    let (mut ty_token, nestruct) = match ty {
+        NestableType::Nestruct(nestruct) => {
+            let ident = nestruct.ident.clone();
+            if nest {
+                let ns = format_ident!("{}", ident.to_string().to_case(Case::Snake));
+                (quote! { #ns::#ident }, Some(nestruct))
+            } else {
+                (quote! { #ident }, Some(nestruct))
+            }
+        }
+        NestableType::Type(ty) => (quote! { #ty }, None),
+    };
+    for meta_type in meta_types {
+        ty_token = quote! { #meta_type<#ty_token> };
+    }
+    (ty_token, nestruct)
+}
+
 fn generate_structs(nest: bool, nestruct: Nestruct, parent_attrs: &[Attribute]) -> TokenStream2 {
     let mut tokens = Vec::new();
     let mut fields = Vec::new();
@@ -104,21 +127,9 @@ fn generate_structs(nest: bool, nestruct: Nestruct, parent_attrs: &[Attribute]) 
             let variant_name = format_ident!("{}", name.to_string().to_case(Case::Pascal));
             variants.push(quote! { #(#field_attrs)* #variant_name })
         } else {
-            let mut ty_token = match field.ty {
-                NestableType::Nestruct(nestruct) => {
-                    let ident = nestruct.ident.clone();
-                    tokens.push(generate_structs(nest, nestruct, &attrs));
-                    if nest {
-                        let ns = format_ident!("{}", ident.to_string().to_case(Case::Snake));
-                        quote! { #ns::#ident }
-                    } else {
-                        quote! { #ident }
-                    }
-                }
-                NestableType::Type(ty) => quote! { #ty },
-            };
-            for meta_type in field.meta_types {
-                ty_token = quote! { #meta_type<#ty_token> };
+            let (ty_token, nestruct) = generate_field_type(field.ty, &field.meta_types, nest);
+            if let Some(nestruct) = nestruct {
+                tokens.push(generate_structs(nest, nestruct, &attrs))
             }
             fields.push(quote! { #(#field_attrs)* pub #name : #ty_token });
         }

@@ -4,7 +4,9 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{braced, bracketed, parse_str, token, Attribute, Ident, Token, Type, TypePath};
+use syn::{
+    braced, bracketed, parenthesized, parse_str, token, Attribute, Ident, Token, Type, TypePath,
+};
 
 struct Nestruct {
     attrs: Vec<Attribute>,
@@ -28,6 +30,7 @@ enum NestableType {
 enum FVType {
     Field,
     UnitVariant,
+    NewtypeVariant,
 }
 
 impl Parse for Nestruct {
@@ -72,6 +75,12 @@ impl Parse for NestableField {
             let ident = format_ident!("{}", name.to_string().to_case(Case::Pascal));
             let (meta_types, ty) = parse_nest_types(input, ident)?;
             Ok(NestableField { field_attrs, name, meta_types, ty, fvtype: FVType::Field })
+        } else if input.peek(token::Paren) {
+            let content;
+            parenthesized!(content in input);
+            let ident = format_ident!("{}", name.to_string().to_case(Case::Pascal));
+            let (meta_types, ty) = parse_nest_types(&content, ident)?;
+            Ok(NestableField { field_attrs, name, meta_types, ty, fvtype: FVType::NewtypeVariant })
         } else {
             let ty = NestableType::Type(parse_str("()")?);
             Ok(NestableField { field_attrs, name, meta_types, ty, fvtype: FVType::UnitVariant })
@@ -132,6 +141,14 @@ fn generate_structs(nest: bool, nestruct: Nestruct, parent_attrs: &[Attribute]) 
             FVType::UnitVariant => {
                 let variant_name = format_ident!("{}", name.to_string().to_case(Case::Pascal));
                 variants.push(quote! { #(#field_attrs)* #variant_name })
+            }
+            FVType::NewtypeVariant => {
+                let variant_name = format_ident!("{}", name.to_string().to_case(Case::Pascal));
+                let (ty_token, nestruct) = generate_field_type(field.ty, &field.meta_types, nest);
+                if let Some(nestruct) = nestruct {
+                    tokens.push(generate_structs(nest, nestruct, &attrs))
+                }
+                variants.push(quote! { #(#field_attrs)* #variant_name(#ty_token) })
             }
             FVType::Field => {
                 let (ty_token, nestruct) = generate_field_type(field.ty, &field.meta_types, nest);

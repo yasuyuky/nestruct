@@ -17,12 +17,17 @@ struct NestableField {
     name: Ident,
     meta_types: Vec<TypePath>,
     ty: NestableType,
-    variant: bool,
+    fvtype: FVType,
 }
 
 enum NestableType {
     Nestruct(Nestruct),
     Type(Type),
+}
+
+enum FVType {
+    Field,
+    UnitVariant,
 }
 
 impl Parse for Nestruct {
@@ -66,10 +71,10 @@ impl Parse for NestableField {
             input.parse::<token::Colon>()?;
             let ident = format_ident!("{}", name.to_string().to_case(Case::Pascal));
             let (meta_types, ty) = parse_nest_types(input, ident)?;
-            Ok(NestableField { field_attrs, name, meta_types, ty, variant: false })
+            Ok(NestableField { field_attrs, name, meta_types, ty, fvtype: FVType::Field })
         } else {
             let ty = NestableType::Type(parse_str("()")?);
-            Ok(NestableField { field_attrs, name, meta_types, ty, variant: true })
+            Ok(NestableField { field_attrs, name, meta_types, ty, fvtype: FVType::UnitVariant })
         }
     }
 }
@@ -123,15 +128,18 @@ fn generate_structs(nest: bool, nestruct: Nestruct, parent_attrs: &[Attribute]) 
     for field in nestruct.fields {
         let field_attrs = field.field_attrs;
         let name = field.name;
-        if field.variant {
-            let variant_name = format_ident!("{}", name.to_string().to_case(Case::Pascal));
-            variants.push(quote! { #(#field_attrs)* #variant_name })
-        } else {
-            let (ty_token, nestruct) = generate_field_type(field.ty, &field.meta_types, nest);
-            if let Some(nestruct) = nestruct {
-                tokens.push(generate_structs(nest, nestruct, &attrs))
+        match field.fvtype {
+            FVType::UnitVariant => {
+                let variant_name = format_ident!("{}", name.to_string().to_case(Case::Pascal));
+                variants.push(quote! { #(#field_attrs)* #variant_name })
             }
-            fields.push(quote! { #(#field_attrs)* pub #name : #ty_token });
+            FVType::Field => {
+                let (ty_token, nestruct) = generate_field_type(field.ty, &field.meta_types, nest);
+                if let Some(nestruct) = nestruct {
+                    tokens.push(generate_structs(nest, nestruct, &attrs))
+                }
+                fields.push(quote! { #(#field_attrs)* pub #name : #ty_token });
+            }
         }
     }
     let ident = nestruct.ident;

@@ -137,26 +137,15 @@ fn generate_structs(nest: bool, nestruct: Nestruct, parent_attrs: &[Attribute]) 
     for field in nestruct.fields {
         let field_attrs = field.field_attrs;
         let name = field.name;
+        let vname = format_ident!("{}", name.to_string().to_case(Case::Pascal));
+        let (ty_token, nestruct) = generate_field_type(field.ty, &field.meta_types, nest);
+        if let Some(nestruct) = nestruct {
+            tokens.push(generate_structs(nest, nestruct, &attrs))
+        }
         match field.fvtype {
-            FVType::UnitVariant => {
-                let variant_name = format_ident!("{}", name.to_string().to_case(Case::Pascal));
-                variants.push(quote! { #(#field_attrs)* #variant_name })
-            }
-            FVType::NewtypeVariant => {
-                let variant_name = format_ident!("{}", name.to_string().to_case(Case::Pascal));
-                let (ty_token, nestruct) = generate_field_type(field.ty, &field.meta_types, nest);
-                if let Some(nestruct) = nestruct {
-                    tokens.push(generate_structs(nest, nestruct, &attrs))
-                }
-                variants.push(quote! { #(#field_attrs)* #variant_name(#ty_token) })
-            }
-            FVType::Field => {
-                let (ty_token, nestruct) = generate_field_type(field.ty, &field.meta_types, nest);
-                if let Some(nestruct) = nestruct {
-                    tokens.push(generate_structs(nest, nestruct, &attrs))
-                }
-                fields.push(quote! { #(#field_attrs)* pub #name : #ty_token });
-            }
+            FVType::Field => fields.push(quote! { #(#field_attrs)* pub #name : #ty_token }),
+            FVType::UnitVariant => variants.push(quote! { #(#field_attrs)* #vname }),
+            FVType::NewtypeVariant => variants.push(quote! { #(#field_attrs)* #vname(#ty_token) }),
         }
     }
     let ident = nestruct.ident;

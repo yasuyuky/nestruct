@@ -69,16 +69,15 @@ impl Parse for NestableField {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let field_attrs = input.call(Attribute::parse_outer)?;
         let name: Ident = input.parse()?;
+        let ident = format_ident!("{}", name.to_string().to_case(Case::Pascal));
         let meta_types = Vec::new();
         if input.peek(token::Colon) {
             input.parse::<token::Colon>()?;
-            let ident = format_ident!("{}", name.to_string().to_case(Case::Pascal));
             let (meta_types, ty) = parse_nest_types(input, ident)?;
             Ok(NestableField { field_attrs, name, meta_types, ty, fvtype: FVType::Field })
         } else if input.peek(token::Paren) {
             let content;
             parenthesized!(content in input);
-            let ident = format_ident!("{}", name.to_string().to_case(Case::Pascal));
             let (meta_types, ty) = parse_nest_types(&content, ident)?;
             Ok(NestableField { field_attrs, name, meta_types, ty, fvtype: FVType::NewtypeVariant })
         } else {

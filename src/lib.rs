@@ -29,6 +29,7 @@ enum FVType {
     Field { meta_types: Vec<TypePath>, ty: NestableType },
     UnitVariant,
     NewtypeVariant { meta_types: Vec<TypePath>, ty: NestableType },
+    StructVariant { nestruct: Nestruct },
 }
 
 impl Parse for Nestruct {
@@ -72,6 +73,12 @@ impl Parse for NestableField {
             input.parse::<token::Colon>()?;
             let (meta_types, ty) = parse_nest_types(input, ident)?;
             Ok(NestableField { field_attrs, name, fvtype: FVType::Field { meta_types, ty } })
+        } else if input.peek(token::Brace) {
+            let content;
+            braced!(content in input);
+            let fields = content.parse_terminated(NestableField::parse)?;
+            let nestruct = Nestruct { attrs: vec![], ident, fields };
+            Ok(NestableField { field_attrs, name, fvtype: FVType::StructVariant { nestruct } })
         } else if input.peek(token::Paren) {
             let content;
             parenthesized!(content in input);
@@ -149,6 +156,17 @@ fn generate_fields<'a>(
                 let (ty_token, nestruct) = generate_field_type(ty, &meta_types, nest);
                 variants.push(quote! { #(#field_attrs)* #vname(#ty_token) });
                 nestruct
+            }
+            FVType::StructVariant { nestruct } => {
+                let fields: Vec<&NestableField> = nestruct.fields.iter().collect();
+                let (grandchildren, is_variant, fields) = generate_fields(&fields, nest);
+                if is_variant {
+                    panic!("Children of struct variants shoukd not be variants");
+                } else {
+                    variants.push(quote! { #(#field_attrs)* #vname{#(#fields),*} });
+                }
+                children.extend(grandchildren);
+                None
             }
         } {
             children.push(child);

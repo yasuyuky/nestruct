@@ -13,7 +13,7 @@ nestruct::nest! {
         },
         grault: {
             garply,
-            waldo,
+            waldo { wubble: String },
         }?,
     }
 }

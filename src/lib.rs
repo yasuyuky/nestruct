@@ -26,9 +26,9 @@ enum NestableType {
 }
 
 enum FVType {
-    Field(Vec<TypePath>, NestableType),
+    Field { meta_types: Vec<TypePath>, ty: NestableType },
     UnitVariant,
-    NewtypeVariant(Vec<TypePath>, NestableType),
+    NewtypeVariant { meta_types: Vec<TypePath>, ty: NestableType },
 }
 
 impl Parse for Nestruct {
@@ -71,12 +71,13 @@ impl Parse for NestableField {
         if input.peek(token::Colon) {
             input.parse::<token::Colon>()?;
             let (meta_types, ty) = parse_nest_types(input, ident)?;
-            Ok(NestableField { field_attrs, name, fvtype: FVType::Field(meta_types, ty) })
+            Ok(NestableField { field_attrs, name, fvtype: FVType::Field { meta_types, ty } })
         } else if input.peek(token::Paren) {
             let content;
             parenthesized!(content in input);
             let (meta_types, ty) = parse_nest_types(&content, ident)?;
-            Ok(NestableField { field_attrs, name, fvtype: FVType::NewtypeVariant(meta_types, ty) })
+            let fvtype = FVType::NewtypeVariant { meta_types, ty };
+            Ok(NestableField { field_attrs, name, fvtype })
         } else {
             Ok(NestableField { field_attrs, name, fvtype: FVType::UnitVariant })
         }
@@ -134,15 +135,15 @@ fn generate_structs(nest: bool, nestruct: Nestruct, parent_attrs: &[Attribute]) 
         let name = field.name;
         let vname = format_ident!("{}", name.to_string().to_case(Case::Pascal));
         match field.fvtype {
-            FVType::Field(meta_types, ty) => {
+            FVType::Field { meta_types, ty } => {
                 let (ty_token, nestruct) = generate_field_type(ty, &meta_types, nest);
                 if let Some(nestruct) = nestruct {
                     tokens.push(generate_structs(nest, nestruct, &attrs))
                 }
                 fields.push(quote! { #(#field_attrs)* pub #name : #ty_token })
-            },
+            }
             FVType::UnitVariant => variants.push(quote! { #(#field_attrs)* #vname }),
-            FVType::NewtypeVariant(meta_types, ty) => {
+            FVType::NewtypeVariant { meta_types, ty } => {
                 let (ty_token, nestruct) = generate_field_type(ty, &meta_types, nest);
                 if let Some(nestruct) = nestruct {
                     tokens.push(generate_structs(nest, nestruct, &attrs))

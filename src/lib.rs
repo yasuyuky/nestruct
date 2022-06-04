@@ -101,11 +101,11 @@ impl NestableType {
     }
 }
 
-fn generate_field_type(
-    ty: NestableType,
+fn generate_field_type<'a>(
+    ty: &'a NestableType,
     meta_types: &[TypePath],
     nest: bool,
-) -> (TokenStream2, Option<Nestruct>) {
+) -> (TokenStream2, Option<&'a Nestruct>) {
     let (mut ty_token, nestruct) = match ty {
         NestableType::Nestruct(nestruct) => {
             let ident = nestruct.ident.clone();
@@ -124,35 +124,49 @@ fn generate_field_type(
     (ty_token, nestruct)
 }
 
-fn generate_structs(nest: bool, nestruct: Nestruct, parent_attrs: &[Attribute]) -> TokenStream2 {
-    let mut tokens = Vec::new();
+fn generate_fields<'a>(
+    nestablefields: &[&'a NestableField],
+    nest: bool,
+) -> (Vec<&'a Nestruct>, Vec<TokenStream2>, Vec<TokenStream2>) {
     let mut fields = Vec::new();
     let mut variants = Vec::new();
-    let mut attrs = Vec::from(parent_attrs);
-    attrs.extend(nestruct.attrs.iter().cloned());
-    for field in nestruct.fields {
-        let field_attrs = field.field_attrs;
-        let name = field.name;
+    let mut children = Vec::new();
+    for field in nestablefields {
+        let field_attrs = &field.field_attrs;
+        let name = &field.name;
         let vname = format_ident!("{}", name.to_string().to_case(Case::Pascal));
-        match field.fvtype {
+        if let Some(child) = match &field.fvtype {
             FVType::Field { meta_types, ty } => {
                 let (ty_token, nestruct) = generate_field_type(ty, &meta_types, nest);
-                if let Some(nestruct) = nestruct {
-                    tokens.push(generate_structs(nest, nestruct, &attrs))
-                }
-                fields.push(quote! { #(#field_attrs)* pub #name : #ty_token })
+                fields.push(quote! { #(#field_attrs)* pub #name : #ty_token });
+                nestruct
             }
-            FVType::UnitVariant => variants.push(quote! { #(#field_attrs)* #vname }),
+            FVType::UnitVariant => {
+                variants.push(quote! { #(#field_attrs)* #vname });
+                None
+            }
             FVType::NewtypeVariant { meta_types, ty } => {
                 let (ty_token, nestruct) = generate_field_type(ty, &meta_types, nest);
-                if let Some(nestruct) = nestruct {
-                    tokens.push(generate_structs(nest, nestruct, &attrs))
-                }
                 variants.push(quote! { #(#field_attrs)* #vname(#ty_token) });
+                nestruct
             }
+        } {
+            children.push(child);
         }
     }
-    let ident = nestruct.ident;
+    (children, fields, variants)
+}
+
+fn generate_structs(nest: bool, nestruct: &Nestruct, parent_attrs: &[Attribute]) -> TokenStream2 {
+    let mut tokens = Vec::new();
+    let fields: Vec<&NestableField> = nestruct.fields.iter().collect();
+    let mut attrs = Vec::from(parent_attrs);
+    attrs.extend(nestruct.attrs.iter().cloned());
+    let (children, fields, variants) = generate_fields(&fields, nest);
+    for child in children {
+        tokens.push(generate_structs(nest, child, &attrs))
+    }
+    let ident = nestruct.ident.clone();
     if variants.len() > 0 {
         if fields.len() > 0 {
             panic!("Cannot have both variants and fields in a brace");
@@ -175,12 +189,12 @@ fn generate_structs(nest: bool, nestruct: Nestruct, parent_attrs: &[Attribute]) 
 pub fn nest(input: TokenStream) -> TokenStream {
     let nestruct = syn::parse_macro_input!(input as Nestruct);
     let attrs = vec![];
-    generate_structs(true, nestruct, &attrs).into()
+    generate_structs(true, &nestruct, &attrs).into()
 }
 
 #[proc_macro]
 pub fn flatten(input: TokenStream) -> TokenStream {
     let nestruct = syn::parse_macro_input!(input as Nestruct);
     let attrs = vec![];
-    generate_structs(false, nestruct, &attrs).into()
+    generate_structs(false, &nestruct, &attrs).into()
 }

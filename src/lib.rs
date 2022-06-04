@@ -127,7 +127,7 @@ fn generate_field_type<'a>(
 fn generate_fields<'a>(
     nestablefields: &[&'a NestableField],
     nest: bool,
-) -> (Vec<&'a Nestruct>, Vec<TokenStream2>, Vec<TokenStream2>) {
+) -> (Vec<&'a Nestruct>, bool, Vec<TokenStream2>) {
     let mut fields = Vec::new();
     let mut variants = Vec::new();
     let mut children = Vec::new();
@@ -154,7 +154,15 @@ fn generate_fields<'a>(
             children.push(child);
         }
     }
-    (children, fields, variants)
+    if variants.len() > 0 {
+        if fields.len() > 0 {
+            panic!("Cannot have both variants and fields in a brace");
+        } else {
+            (children, true, fields)
+        }
+    } else {
+        (children, false, variants)
+    }
 }
 
 fn generate_structs(nest: bool, nestruct: &Nestruct, parent_attrs: &[Attribute]) -> TokenStream2 {
@@ -162,20 +170,16 @@ fn generate_structs(nest: bool, nestruct: &Nestruct, parent_attrs: &[Attribute])
     let fields: Vec<&NestableField> = nestruct.fields.iter().collect();
     let mut attrs = Vec::from(parent_attrs);
     attrs.extend(nestruct.attrs.iter().cloned());
-    let (children, fields, variants) = generate_fields(&fields, nest);
+    let (children, is_variant, fvs) = generate_fields(&fields, nest);
     for child in children {
         tokens.push(generate_structs(nest, child, &attrs))
     }
     let ident = nestruct.ident.clone();
-    if variants.len() > 0 {
-        if fields.len() > 0 {
-            panic!("Cannot have both variants and fields in a brace");
-        } else {
-            tokens.push(quote! { #(#attrs)* pub enum #ident { #(#variants),* } });
-        }
+    tokens.push(if is_variant {
+        quote! { #(#attrs)* pub enum #ident { #(#fvs),* } }
     } else {
-        tokens.push(quote! { #(#attrs)* pub struct #ident { #(#fields),* } });
-    }
+        quote! { #(#attrs)* pub struct #ident { #(#fvs),* } }
+    });
     let token = tokens.into_iter().collect::<TokenStream2>();
     if nest {
         let ns = format_ident!("{}", ident.to_string().to_case(Case::Snake));

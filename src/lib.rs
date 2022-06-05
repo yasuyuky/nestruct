@@ -149,6 +149,7 @@ fn generate_field_type<'a>(
 fn generate_fields<'a>(
     nestablefields: &[&'a NestableField],
     nest: bool,
+    pubtoken: TokenStream2,
 ) -> (Vec<&'a Nestruct>, bool, Vec<TokenStream2>) {
     let mut fields = Vec::new();
     let mut variants = Vec::new();
@@ -160,7 +161,7 @@ fn generate_fields<'a>(
         match &field.fvtype {
             FVType::Field { meta_types, ty } => {
                 let (ty_token, nestruct) = generate_field_type(ty, &meta_types, nest);
-                fields.push(quote! { #(#field_attrs)* pub #name : #ty_token });
+                fields.push(quote! { #(#field_attrs)* #pubtoken #name : #ty_token });
                 if let Some(nestruct) = nestruct {
                     children.push(nestruct);
                 }
@@ -179,7 +180,7 @@ fn generate_fields<'a>(
             }
             FVType::StructVariant { nestruct } => {
                 let fields: Vec<&NestableField> = nestruct.fields.iter().collect();
-                let (grandchildren, is_variant, fields) = generate_fields(&fields, nest);
+                let (grandchildren, is_variant, fields) = generate_fields(&fields, nest, quote! {});
                 if is_variant {
                     panic!("Children of struct variants shoukd not be variants");
                 } else {
@@ -205,7 +206,7 @@ fn generate_structs(nest: bool, nestruct: &Nestruct, parent_attrs: &[Attribute])
     let fields: Vec<&NestableField> = nestruct.fields.iter().collect();
     let mut attrs = Vec::from(parent_attrs);
     attrs.extend(nestruct.attrs.iter().cloned());
-    let (children, is_variant, fvs) = generate_fields(&fields, nest);
+    let (children, is_variant, fvs) = generate_fields(&fields, nest, quote! { pub });
     for child in children {
         tokens.push(generate_structs(nest, child, &attrs))
     }

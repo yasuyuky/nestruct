@@ -47,15 +47,25 @@ fn parse_nest_types(
     input: ParseStream,
     ident: Ident,
 ) -> syn::Result<(Vec<TypePath>, NestableType)> {
+    let parse_nestable_type = |input: ParseStream| {
+        let attrs = input.call(Attribute::parse_outer)?;
+        NestableType::parse_with_context(input, attrs, ident.clone())
+    };
+    parse_shorthand_types(input, parse_nestable_type)
+}
+
+fn parse_shorthand_types<T>(
+    input: ParseStream,
+    parser: impl Fn(ParseStream) -> syn::Result<T>,
+) -> syn::Result<(Vec<TypePath>, T)> {
     let mut outer_types = Vec::new();
     let buffer;
     let (mut inner_types, ty) = if input.peek(token::Bracket) {
         bracketed!(buffer in input);
         outer_types.push(parse_str::<TypePath>("Vec")?);
-        parse_nest_types(&buffer, ident)?
+        parse_shorthand_types(&buffer, parser)?
     } else {
-        let attrs = input.call(Attribute::parse_outer)?;
-        (Vec::new(), NestableType::parse_with_context(input, attrs, ident)?)
+        (Vec::new(), parser(input)?)
     };
     if input.parse::<Option<Token![?]>>()?.is_some() {
         outer_types.push(parse_str::<TypePath>("Option")?);

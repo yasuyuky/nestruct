@@ -28,7 +28,7 @@ enum NestableType {
 enum FVType {
     Field { meta_types: Vec<TypePath>, ty: NestableType },
     UnitVariant,
-    NewtypeVariant { meta_types: Vec<TypePath>, ty: NestableType },
+    TupleVariant { types: Punctuated<(Vec<TypePath>, Type), Token![,]> },
     StructVariant { nestruct: Nestruct },
 }
 
@@ -52,6 +52,11 @@ fn parse_nest_types(
         NestableType::parse_with_context(input, attrs, ident.clone())
     };
     parse_shorthand_types(input, parse_nestable_type)
+}
+
+fn parse_simple_types(input: ParseStream) -> syn::Result<(Vec<TypePath>, Type)> {
+    let parse_simple_type = |input: ParseStream| input.parse::<Type>();
+    parse_shorthand_types(input, parse_simple_type)
 }
 
 fn parse_shorthand_types<T>(
@@ -92,8 +97,8 @@ impl Parse for NestableField {
         } else if input.peek(token::Paren) {
             let content;
             parenthesized!(content in input);
-            let (meta_types, ty) = parse_nest_types(&content, ident)?;
-            let fvtype = FVType::NewtypeVariant { meta_types, ty };
+            let types = content.parse_terminated(parse_simple_types)?;
+            let fvtype = FVType::TupleVariant { types };
             Ok(NestableField { field_attrs, name, fvtype })
         } else {
             Ok(NestableField { field_attrs, name, fvtype: FVType::UnitVariant })
@@ -162,10 +167,15 @@ fn generate_fields<'a>(
                 variants.push(quote! { #(#field_attrs)* #vname });
                 None
             }
-            FVType::NewtypeVariant { meta_types, ty } => {
-                let (ty_token, nestruct) = generate_field_type(ty, &meta_types, nest);
-                variants.push(quote! { #(#field_attrs)* #vname(#ty_token) });
-                nestruct
+            FVType::TupleVariant { types } => {
+                let mut ty_tokens = Vec::new();
+                for (meta_types, ty) in types {
+                    let (ty_token, _) =
+                        generate_field_type(&NestableType::Type(ty.clone()), &meta_types, nest);
+                    ty_tokens.push(ty_token);
+                }
+                variants.push(quote! { #(#field_attrs)* #vname(#(#ty_tokens),*) });
+                None
             }
             FVType::StructVariant { nestruct } => {
                 let fields: Vec<&NestableField> = nestruct.fields.iter().collect();

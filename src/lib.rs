@@ -196,10 +196,10 @@ fn generate_fields<'a>(
         if fields.len() > 0 {
             panic!("Cannot have both variants and fields in a brace");
         } else {
-            (children, true, fields)
+            (children, true, variants)
         }
     } else {
-        (children, false, variants)
+        (children, false, fields)
     }
 }
 

@@ -157,15 +157,16 @@ fn generate_fields<'a>(
         let field_attrs = &field.field_attrs;
         let name = &field.name;
         let vname = format_ident!("{}", name.to_string().to_case(Case::Pascal));
-        if let Some(child) = match &field.fvtype {
+        match &field.fvtype {
             FVType::Field { meta_types, ty } => {
                 let (ty_token, nestruct) = generate_field_type(ty, &meta_types, nest);
                 fields.push(quote! { #(#field_attrs)* pub #name : #ty_token });
-                nestruct
+                if let Some(nestruct) = nestruct {
+                    children.push(nestruct);
+                }
             }
             FVType::UnitVariant => {
                 variants.push(quote! { #(#field_attrs)* #vname });
-                None
             }
             FVType::TupleVariant { types } => {
                 let mut ty_tokens = Vec::new();
@@ -175,7 +176,6 @@ fn generate_fields<'a>(
                     ty_tokens.push(ty_token);
                 }
                 variants.push(quote! { #(#field_attrs)* #vname(#(#ty_tokens),*) });
-                None
             }
             FVType::StructVariant { nestruct } => {
                 let fields: Vec<&NestableField> = nestruct.fields.iter().collect();
@@ -186,10 +186,7 @@ fn generate_fields<'a>(
                     variants.push(quote! { #(#field_attrs)* #vname{#(#fields),*} });
                 }
                 children.extend(grandchildren);
-                None
             }
-        } {
-            children.push(child);
         }
     }
     if variants.len() > 0 {

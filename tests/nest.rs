@@ -16,6 +16,7 @@ nestruct::nest! {
         grault: {
             garply,
             waldo { wubble: String },
+            wubble(usize?, usize?)
         }?,
     }
 }
@@ -39,7 +40,7 @@ fn test_nest_deserialize() {
             ],
             "corge": "corge"
         },
-        "grault": "garply"
+        "grault": { "wubble": [0, null] }
     }
     "#;
     let foobar = serde_json::from_str::<foo_bar::FooBar>(jsonstr).unwrap();

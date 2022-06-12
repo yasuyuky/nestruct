@@ -2,7 +2,9 @@ nestruct::nest! {
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     #[serde(rename_all = "camelCase")]
     FooBar {
+        /// foo
         foo: String?,
+        /// bar
         bar: [[usize]?]?,
         baz: {
             qux: [{

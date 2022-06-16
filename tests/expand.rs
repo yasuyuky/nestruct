@@ -10,5 +10,7 @@ fn check_expanded(test_name: &str) -> anyhow::Result<()> {
 
 #[test]
 fn test_expand() -> anyhow::Result<()> {
-    check_expanded("nest_complex")
+    check_expanded("nest_complex")?;
+    check_expanded("flatten_complex")?;
+    Ok(())
 }

@@ -18,5 +18,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Build
         run: cargo build --verbose
+      - name: Install cargo-expand
+        run: cargo install cargo-expand
       - name: Run tests
         run: cargo test --verbose

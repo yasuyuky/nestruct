@@ -160,7 +160,7 @@ fn generate_fields<'a>(
         let vname = format_ident!("{}", name.to_string().to_case(Case::Pascal));
         match &field.fvtype {
             FVType::Field { meta_types, ty } => {
-                let (ty_token, nestruct) = generate_field_type(ty, &meta_types, nest);
+                let (ty_token, nestruct) = generate_field_type(ty, meta_types, nest);
                 fields.push(quote! { #(#field_attrs)* #pubtoken #name : #ty_token });
                 if let Some(nestruct) = nestruct {
                     children.push(nestruct);
@@ -173,7 +173,7 @@ fn generate_fields<'a>(
                 let mut ty_tokens = Vec::new();
                 for (meta_types, ty) in types {
                     let (ty_token, _) =
-                        generate_field_type(&NestableType::Type(ty.clone()), &meta_types, nest);
+                        generate_field_type(&NestableType::Type(ty.clone()), meta_types, nest);
                     ty_tokens.push(ty_token);
                 }
                 variants.push(quote! { #(#field_attrs)* #vname(#(#ty_tokens),*) });

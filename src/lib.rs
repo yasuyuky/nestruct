@@ -190,8 +190,8 @@ fn generate_fields<'a>(
             }
         }
     }
-    if variants.len() > 0 {
-        if fields.len() > 0 {
+    if !variants.is_empty() {
+        if !fields.is_empty() {
             panic!("Cannot have both variants and fields in a brace");
         } else {
             (children, true, variants)

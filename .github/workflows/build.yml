@@ -20,5 +20,7 @@ jobs:
         run: cargo build --verbose
       - name: Install cargo-expand
         run: cargo install cargo-expand
+      - name: Install nightly toolchain for cargo expand
+        run: rustup toolchain install nightly
       - name: Run tests
         run: cargo test --verbose

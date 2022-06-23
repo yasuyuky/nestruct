@@ -1,8 +1,3 @@
-#![feature(prelude_import)]
-#[prelude_import]
-use std::prelude::rust_2021::*;
-#[macro_use]
-extern crate std;
 pub mod foo_bar {
     pub mod baz {
         pub mod qux {
@@ -31,9 +26,4 @@ pub mod foo_bar {
         pub baz: baz::Baz,
         pub grault: Option<grault::Grault>,
     }
-}
-#[rustc_main]
-pub fn main() -> () {
-    extern crate test;
-    test::test_main_static(&[])
 }

@@ -1,23 +1,25 @@
-nestruct::flatten! {
-    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-    #[serde(rename_all = "camelCase")]
-    FooBar {
-        /// foo
-        foo: String?,
-        /// bar
-        bar: [[usize]?]?,
-        baz: {
-            qux: [{
-                quux: (usize, usize)?,
-                quuz: String?,
-            }],
-            corge: String,
-        },
-        grault: {
-            garply,
-            waldo { wubble: String },
-            wubble(usize?, usize?)
-        }?,
+mod foo_bar {
+    nestruct::flatten! {
+        #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        FooBar {
+            /// foo
+            foo: String?,
+            /// bar
+            bar: [[usize]?]?,
+            baz: {
+                qux: [{
+                    quux: (usize, usize)?,
+                    quuz: String?,
+                }],
+                corge: String,
+            },
+            grault: {
+                garply,
+                waldo { wubble: String },
+                wubble(usize?, usize?)
+            }?,
+        }
     }
 }
 
@@ -43,6 +45,6 @@ fn test_flatten_deserialize() {
         "grault": { "wubble": [0, null] }
     }
     "#;
-    let foobar = serde_json::from_str::<FooBar>(jsonstr).unwrap();
+    let foobar = serde_json::from_str::<foo_bar::FooBar>(jsonstr).unwrap();
     println!("{:#?}", foobar);
 }

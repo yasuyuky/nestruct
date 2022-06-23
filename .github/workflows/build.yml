@@ -22,5 +22,7 @@ jobs:
         run: cargo install cargo-expand
       - name: Install nightly toolchain for cargo expand
         run: rustup toolchain install nightly
+      - name: Install rustfmt for cargo expand
+        run: rustup component add rustfmt --toolchain nightly
       - name: Run tests
         run: cargo test --verbose

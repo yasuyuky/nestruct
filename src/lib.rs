@@ -2,6 +2,7 @@ use convert_case::{Case, Casing};
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
+use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{
@@ -201,11 +202,28 @@ fn generate_fields<'a>(
     }
 }
 
+fn is_reset_attr(attr: &Attribute) -> bool {
+    if let Some(ident) = attr.path.get_ident() {
+        if ident.to_string() == "nestruct" {
+            if let Ok(arg) = attr.parse_args_with(Ident::parse_any) {
+                return arg.to_string() == "reset";
+            }
+        }
+    }
+    false
+}
+
 fn generate_structs(nest: bool, nestruct: &Nestruct, parent_attrs: &[Attribute]) -> TokenStream2 {
     let mut tokens = Vec::new();
     let fields: Vec<&NestableField> = nestruct.fields.iter().collect();
     let mut attrs = Vec::from(parent_attrs);
-    attrs.extend(nestruct.attrs.iter().cloned());
+    for attr in nestruct.attrs.clone() {
+        if is_reset_attr(&attr) {
+            attrs.clear()
+        } else {
+            attrs.push(attr)
+        }
+    }
     let (children, is_variant, fvs) = generate_fields(&fields, nest, quote! { pub });
     for child in children {
         tokens.push(generate_structs(nest, child, &attrs))

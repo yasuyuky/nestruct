@@ -201,6 +201,17 @@ fn generate_fields<'a>(
     }
 }
 
+fn is_reset_attr(attr: &Attribute) -> bool {
+    if let Some(ident) = attr.path.get_ident() {
+        if ident.to_string() == "nestruct" {
+            if let Ok(arg) = attr.parse_args_with(Ident::parse_any) {
+                return arg.to_string() == "reset";
+            }
+        }
+    }
+    false
+}
+
 fn generate_structs(nest: bool, nestruct: &Nestruct, parent_attrs: &[Attribute]) -> TokenStream2 {
     let mut tokens = Vec::new();
     let fields: Vec<&NestableField> = nestruct.fields.iter().collect();

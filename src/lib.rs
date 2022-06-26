@@ -2,6 +2,7 @@ use convert_case::{Case, Casing};
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
+use syn::ext::IdentExt;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{
@@ -216,7 +217,13 @@ fn generate_structs(nest: bool, nestruct: &Nestruct, parent_attrs: &[Attribute])
     let mut tokens = Vec::new();
     let fields: Vec<&NestableField> = nestruct.fields.iter().collect();
     let mut attrs = Vec::from(parent_attrs);
-    attrs.extend(nestruct.attrs.iter().cloned());
+    for attr in nestruct.attrs.clone() {
+        if is_reset_attr(&attr) {
+            attrs.clear()
+        } else {
+            attrs.push(attr)
+        }
+    }
     let (children, is_variant, fvs) = generate_fields(&fields, nest, quote! { pub });
     for child in children {
         tokens.push(generate_structs(nest, child, &attrs))

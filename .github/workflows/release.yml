@@ -1,0 +1,39 @@
+name: release
+
+on:
+  push:
+    tags:
+      - v*
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Get the version in cargo
+        id: cargo_ver
+        run: |
+          VERSION=$(grep '^version' Cargo.toml | cut -d '"' -f 2)
+          echo ${VERSION}
+          echo v=v${VERSION} >>$GITHUB_OUTPUT
+          test ${GITHUB_REF/refs\/tags\//} = v${VERSION}
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.cargo_ver.outputs.v }}
+          release_name: Release ${{ steps.cargo_ver.outputs.v }}
+          body: Automated release
+          draft: false
+          prerelease: false
+
+      - name: Publish to crates.io
+        run: |
+          cargo login $CARGO_TOKEN
+          cargo publish
+        env:
+          CARGO_TOKEN: ${{ secrets.CARGO_TOKEN }}

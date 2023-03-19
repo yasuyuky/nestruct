@@ -2,6 +2,11 @@
 name = "nestruct"
 version = "0.1.0"
 edition = "2021"
+authors = ["Yasuyuki Yamada <yasuyuki.ymd@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/yasuyuky/nestruct"
+description = "A Rust library that provides macros to easily flatten or nest structs and enums in your code."
+keywords = ["rust", "macros", "structs", "enums", "flatten", "nest"]
 
 [lib]
 proc-macro = true

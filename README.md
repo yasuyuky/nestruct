@@ -127,7 +127,7 @@ Add the following dependency to your Cargo.toml:
 
 ```toml
 [dependencies]
-nestruct = { git = "https://github.com/yasuyuky/nestruct.git" }
+nestruct = "0.1.0"
 ```
 
 ## License

@@ -39,7 +39,7 @@ impl Parse for Nestruct {
         let ident = input.parse()?;
         let content;
         braced!(content in input);
-        let fields = content.parse_terminated(NestableField::parse)?;
+        let fields = content.parse_terminated(NestableField::parse, Token![,])?;
         Ok(Nestruct { attrs, ident, fields })
     }
 }
@@ -92,13 +92,13 @@ impl Parse for NestableField {
         } else if input.peek(token::Brace) {
             let content;
             braced!(content in input);
-            let fields = content.parse_terminated(NestableField::parse)?;
+            let fields = content.parse_terminated(NestableField::parse, Token![,])?;
             let nestruct = Nestruct { attrs: vec![], ident, fields };
             Ok(NestableField { field_attrs, name, fvtype: FVType::StructVariant { nestruct } })
         } else if input.peek(token::Paren) {
             let content;
             parenthesized!(content in input);
-            let types = content.parse_terminated(parse_simple_types)?;
+            let types = content.parse_terminated(parse_simple_types, Token![,])?;
             let fvtype = FVType::TupleVariant { types };
             Ok(NestableField { field_attrs, name, fvtype })
         } else {
@@ -116,7 +116,7 @@ impl NestableType {
         if input.peek(token::Brace) {
             let content;
             braced!(content in input);
-            let fields = content.parse_terminated(NestableField::parse)?;
+            let fields = content.parse_terminated(NestableField::parse, Token![,])?;
             Ok(Self::Nestruct(Nestruct { attrs, ident, fields }))
         } else {
             Ok(Self::Type(input.parse()?))
@@ -203,7 +203,7 @@ fn generate_fields<'a>(
 }
 
 fn is_reset_attr(attr: &Attribute) -> bool {
-    if let Some(ident) = attr.path.get_ident() {
+    if let Some(ident) = attr.path().get_ident() {
         if ident == "nestruct" {
             if let Ok(arg) = attr.parse_args_with(Ident::parse_any) {
                 return arg == "reset";

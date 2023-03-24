@@ -2,6 +2,8 @@
 
 Nestruct is a Rust library that provides macros to easily flatten or nest structs and enums in your code. It can help simplify the representation of complex data structures, such as web API response types. Nestruct allows you to write concise code and automatically generates the equivalent standard Rust structs and enums.
 
+[![build](https://github.com/yasuyuky/nestruct/workflows/build/badge.svg)](https://github.com/yasuyuky/nestruct/actions)
+
 ## Features
 
 - `nestruct::flatten!`: Flatten nested structs and enums into a single namespace.

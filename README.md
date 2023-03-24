@@ -74,6 +74,7 @@ Similarly, using the `nest!` macro, you can nest a flattened structure like this
 
 ```rust
 nestruct::nest! {
+    #[derive(serde::Deserialize)]
     FooBar {
         /// foo
         foo: String?,
@@ -101,23 +102,27 @@ Into the following nested structure:
 pub mod foo_bar {
     pub mod baz {
         pub mod qux {
+            #[derive(serde::Deserialize)]
             pub struct Qux {
                 pub quux: Option<(usize, usize)>,
                 pub quuz: Option<String>,
             }
         }
+        #[derive(serde::Deserialize)]
         pub struct Baz {
             pub qux: Vec<qux::Qux>,
             pub corge: String,
         }
     }
     pub mod grault {
+        #[derive(serde::Deserialize)]
         pub enum Grault {
             Garply,
             Waldo { wubble: String },
             Wubble(Option<usize>, Option<usize>),
         }
     }
+    #[derive(serde::Deserialize)]
     pub struct FooBar {
         /// foo
         pub foo: Option<String>,

@@ -131,4 +131,4 @@ nestruct = "0.1.0"
 ```
 
 ## License
-Nestruct is distributed under the MIT License. See the LICENSE file for more information.
+Nestruct is distributed under the MIT License. See the [LICENSE file](README.md) for more information.

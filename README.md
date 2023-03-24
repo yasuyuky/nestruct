@@ -14,6 +14,7 @@ Using the `flatten!` macro, you can transform the following nested structure:
 
 ```rust
 mod foo_bar {
+    #[derive(serde::Deserialize)]
     nestruct::flatten! {
         FooBar {
             /// foo
@@ -41,19 +42,23 @@ Into the following flattened structure:
 
 ```rust
 mod foo_bar {
+    #[derive(serde::Deserialize)]
     pub struct Qux {
         pub quux: Option<(usize, usize)>,
         pub quuz: Option<String>,
     }
+    #[derive(serde::Deserialize)]
     pub struct Baz {
         pub qux: Vec<Qux>,
         pub corge: String,
     }
+    #[derive(serde::Deserialize)]
     pub enum Grault {
         Garply,
         Waldo { wubble: String },
         Wubble(Option<usize>, Option<usize>),
     }
+    #[derive(serde::Deserialize)]
     pub struct FooBar {
         /// foo
         pub foo: Option<String>,

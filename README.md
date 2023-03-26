@@ -14,8 +14,8 @@ Using the `flatten!` macro, you can transform the following nested structure:
 
 ```rust
 mod foo_bar {
-    #[derive(serde::Deserialize)]
     nestruct::flatten! {
+        #[derive(serde::Deserialize)]
         FooBar {
             /// foo
             foo: String?,

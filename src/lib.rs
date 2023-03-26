@@ -243,6 +243,9 @@ fn generate_structs(nest: bool, nestruct: &Nestruct, parent_attrs: &[Attribute])
     }
 }
 
+/// The `nest!{}` macro.
+/// This macro takes a struct definition and nests it into a module.
+/// To use the attributes, you must use the absolute path to the attribute.
 #[proc_macro]
 pub fn nest(input: TokenStream) -> TokenStream {
     let nestruct = syn::parse_macro_input!(input as Nestruct);
@@ -250,6 +253,8 @@ pub fn nest(input: TokenStream) -> TokenStream {
     generate_structs(true, &nestruct, &attrs).into()
 }
 
+/// The `flatten!{}` macro.
+/// This macro takes a struct definition and flattens it into the current module.
 #[proc_macro]
 pub fn flatten(input: TokenStream) -> TokenStream {
     let nestruct = syn::parse_macro_input!(input as Nestruct);

@@ -1,3 +1,135 @@
+//! Nestruct is a Rust library that provides macros to easily flatten or nest structs and enums in your code.
+//! It can help simplify the representation of complex data structures, such as web API response types.
+//! Nestruct allows you to write concise code and automatically generates the equivalent standard Rust structs and enums.
+//!
+//! # Examples
+//!
+//! ## `flatten!` macro
+//! the macro takes a struct definition and flattens it into a module.
+//!
+//! ```rust
+//! mod foo_bar {
+//!     nestruct::flatten! {
+//!         #[derive(serde::Deserialize)]
+//!         FooBar {
+//!             /// foo
+//!             foo: String?,
+//!             /// bar
+//!             bar: [[usize]?]?,
+//!             baz: {
+//!                 qux: [{
+//!                     quux: (usize, usize)?,
+//!                     quuz: String?,
+//!                 }],
+//!                 corge: String,
+//!             },
+//!             grault: {
+//!                 garply,
+//!                 waldo { wubble: String },
+//!                 wubble(usize?, usize?)
+//!             }?,
+//!         }
+//!     }
+//! }
+//! ```
+//!
+//! The above code will generate the following code:
+//!
+//! ```rust
+//! mod foo_bar {
+//!     #[derive(serde::Deserialize)]
+//!     pub struct Qux {
+//!         pub quux: Option<(usize, usize)>,
+//!         pub quuz: Option<String>,
+//!     }
+//!     #[derive(serde::Deserialize)]
+//!     pub struct Baz {
+//!         pub qux: Vec<Qux>,
+//!         pub corge: String,
+//!     }
+//!     #[derive(serde::Deserialize)]
+//!     pub enum Grault {
+//!         Garply,
+//!         Waldo { wubble: String },
+//!         Wubble(Option<usize>, Option<usize>),
+//!     }
+//!     #[derive(serde::Deserialize)]
+//!     pub struct FooBar {
+//!         /// foo
+//!         pub foo: Option<String>,
+//!         /// bar
+//!         pub bar: Option<Vec<Option<Vec<usize>>>>,
+//!         pub baz: Baz,
+//!         pub grault: Option<Grault>,
+//!     }
+//! }
+//! ```
+//!
+//! ## `nest!` macro
+//! the macro takes a struct definition and nests it into a module.
+//!
+//! ```rust
+//! nestruct::nest! {
+//!     #[derive(serde::Deserialize)]
+//!     FooBar {
+//!         /// foo
+//!         foo: String?,
+//!         /// bar
+//!         bar: [[usize]?]?,
+//!         baz: {
+//!             qux: [{
+//!                 quux: (usize, usize)?,
+//!                 quuz: String?,
+//!             }],
+//!             corge: String,
+//!         },
+//!         grault: {
+//!             garply,
+//!             waldo { wubble: String },
+//!             wubble(usize?, usize?)
+//!         }?,
+//!     }
+//! }
+//! ```
+//!
+//! The above code will generate the following code:
+//!
+//! ```rust
+//! pub mod foo_bar {
+//!     pub mod baz {
+//!         pub mod qux {
+//!             #[derive(serde::Deserialize)]
+//!             pub struct Qux {
+//!                 pub quux: Option<(usize, usize)>,
+//!                 pub quuz: Option<String>,
+//!             }
+//!         }
+//!         #[derive(serde::Deserialize)]
+//!         pub struct Baz {
+//!             pub qux: Vec<qux::Qux>,
+//!             pub corge: String,
+//!         }
+//!     }
+//!     pub mod grault {
+//!         #[derive(serde::Deserialize)]
+//!         pub enum Grault {
+//!             Garply,
+//!             Waldo { wubble: String },
+//!             Wubble(Option<usize>, Option<usize>),
+//!         }
+//!     }
+//!     #[derive(serde::Deserialize)]
+//!     pub struct FooBar {
+//!         /// foo
+//!         pub foo: Option<String>,
+//!         /// bar
+//!         pub bar: Option<Vec<Option<Vec<usize>>>>,
+//!         pub baz: baz::Baz,
+//!         pub grault: Option<grault::Grault>,
+//!     }
+//! }
+//! ```
+//!
 use convert_case::{Case, Casing};
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;

@@ -12,7 +12,7 @@ keywords = ["macros", "structs", "enums", "flatten", "nest"]
 proc-macro = true
 
 [dependencies]
-convert_case = "0.10.0"
+convert_case = "0.11.0"
 proc-macro2 = "1.0.37"
 quote = "1.0.17"
 syn = { version = "2.0.4", features = ["full"] }
